@@ -126,6 +126,16 @@ test("recorder output switches the GUI from preparation to rendering", () => {
 	assert.equal(recordingPhaseFromOutput("Combining video and audio..."), "muxing");
 });
 
+test("recorder phases are ordered so late loading output cannot regress the GUI", () => {
+	const order = { preparing: 1, rendering: 2, audio: 3, muxing: 4 };
+	let current = "";
+	for (const line of ["Loading...", "frame= 153 fps=152", "Loading a cached asset..."]) {
+		const next = recordingPhaseFromOutput(line);
+		if (next && order[next] >= (order[current] || 0)) current = next;
+	}
+	assert.equal(current, "rendering");
+});
+
 test("ANSI control sequences are removed from logs", () => {
 	assert.equal(stripAnsi("\u001b[31merror\u001b[0m"), "error");
 });

@@ -16,6 +16,7 @@ const state = {
 	running: false,
 	runtimeReady: false,
 	progress: 0,
+	phase: "",
 	startedAt: 0,
 	timer: 0,
 	logLines: [],
@@ -148,10 +149,14 @@ function appendLog(line, source = "stdout") {
 
 	state.progress = progressFromOutput(value, state.progress);
 	const phase = recordingPhaseFromOutput(value);
-	if (phase === "preparing") setStatus("recording", "PREPARING", "正在载入资源", elapsed());
-	if (phase === "rendering") setStatus("recording", "RENDERING", "正在生成画面", elapsed());
-	if (phase === "audio") setStatus("recording", "AUDIO", "正在生成音频", elapsed());
-	if (phase === "muxing") setStatus("recording", "MUXING", "正在封装视频", elapsed());
+	const phaseOrder = { preparing: 1, rendering: 2, audio: 3, muxing: 4 };
+	if (phase && (phaseOrder[phase] || 0) >= (phaseOrder[state.phase] || 0)) {
+		state.phase = phase;
+		if (phase === "preparing") setStatus("recording", "PREPARING", "正在载入资源", elapsed());
+		if (phase === "rendering") setStatus("recording", "RENDERING", "正在生成画面", elapsed());
+		if (phase === "audio") setStatus("recording", "AUDIO", "正在生成音频", elapsed());
+		if (phase === "muxing") setStatus("recording", "MUXING", "正在封装视频", elapsed());
+	}
 	setProgress(state.progress, state.running && state.progress >= 7 && state.progress < 70);
 }
 
@@ -257,6 +262,7 @@ async function beginRecording(event) {
 	state.running = true;
 	state.startedAt = Date.now();
 	state.progress = 2;
+	state.phase = "";
 	state.logLines = [];
 	elements["log-output"].textContent = "";
 	elements["reveal-output"].hidden = true;
