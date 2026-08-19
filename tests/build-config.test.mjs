@@ -45,6 +45,7 @@ test("Node is a minimum requirement, not a pinned runtime", async () => {
 	assert.equal(packageJson.engines.node, ">=22.23.2");
 	assert.equal(Object.hasOwn(packageJson.devDependencies, "node"), false);
 	assert.equal(packageJson.devDependencies["node-gyp"], "12.4.0");
+	assert.equal(packageJson.overrides.gl, "9.0.0-rc.10");
 	assert.equal(packageJson.overrides["node-gyp"], "12.4.0");
 	const workflow = await readFile(new URL("../.github/workflows/build.yml", import.meta.url), "utf8");
 	assert.match(workflow, /node-version: ['"]lts\/\*['"]/);
