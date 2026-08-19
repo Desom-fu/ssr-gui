@@ -121,6 +121,10 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install pkg-config cairo pango libpng jpeg giflib librsvg pixman
 
+      - name: Use the C++ standard required by current Node on macOS
+        if: runner.os == 'macOS'
+        run: echo "CXXFLAGS=-std=c++20" >> "$GITHUB_ENV"
+
       - name: Install JavaScript and native dependencies
         env:
           NODE_GYP_FORCE_PYTHON: ${{ steps.setup-python.outputs.python-path }}
