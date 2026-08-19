@@ -50,7 +50,7 @@ const FONT_ASSETS = Object.freeze([
 		localUrl: "/game/fonts/NotoSansCJKtc-Regular.otf",
 	},
 	{
-		name: "wt071.ttf",
+		name: "HanWangShinSuMedium.ttf",
 		family: "HanWangShinSuMedium",
 		url: "https://fastly.jsdelivr.net/gh/kaio/wangfonts@268666d80f8029bb8c61b9668352c7a375873301/TrueType/wt071.ttf",
 		rawUrl: "https://raw.githubusercontent.com/kaio/wangfonts/268666d80f8029bb8c61b9668352c7a375873301/TrueType/wt071.ttf",
@@ -59,7 +59,7 @@ const FONT_ASSETS = Object.freeze([
 		licenseUrl: "https://raw.githubusercontent.com/kaio/wangfonts/268666d80f8029bb8c61b9668352c7a375873301/license.txt",
 		licenseSha256: "DB511383A96A22DB478AE02390B8AB8EA8C7DA44020C8A4FB59B1B2D7BBA538E",
 		sourceUrl: "https://github.com/kaio/wangfonts",
-		localUrl: "/game/fonts/wt071.ttf",
+		localUrl: "/game/fonts/HanWangShinSuMedium.ttf",
 	},
 	{
 		name: "YujiBoku-Regular.ttf",
@@ -76,12 +76,12 @@ const FONT_ASSETS = Object.freeze([
 	{
 		name: "LXGWWenKai-Regular.ttf",
 		family: "LXGW WenKai",
-		url: "https://fastly.jsdelivr.net/gh/lxgw/LxgwWenKai@50f4b182415a8c33d9a456df220b66a284e2509b/fonts/TTF/LXGWWenKai-Regular.ttf",
-		rawUrl: "https://raw.githubusercontent.com/lxgw/LxgwWenKai/50f4b182415a8c33d9a456df220b66a284e2509b/fonts/TTF/LXGWWenKai-Regular.ttf",
-		sha256: "39AD71264B588165B469E35E6AFB162A378DACD1F95348160240BA9038AC3009",
+		url: "https://fastly.jsdelivr.net/gh/lxgw/LxgwWenKai@1.245.1/fonts/TTF/LXGWWenKai-Regular.ttf",
+		rawUrl: "https://raw.githubusercontent.com/lxgw/LxgwWenKai/1.245.1/fonts/TTF/LXGWWenKai-Regular.ttf",
+		sha256: "9D5FB31B282E4AC16B6B9AAA0D40C21E947AC6BD2A7F32C814D43F7F5F396BF9",
 		license: "LXGWWenKai-OFL.txt",
-		licenseUrl: "https://raw.githubusercontent.com/lxgw/LxgwWenKai/50f4b182415a8c33d9a456df220b66a284e2509b/OFL.txt",
-		licenseSha256: "1A25E35DA1031C6C3436FDE545BB9CB5ACA954E9873AFE510C834B8B79BD21A0",
+		licenseUrl: "https://raw.githubusercontent.com/lxgw/LxgwWenKai/1.245.1/OFL.txt",
+		licenseSha256: "C7BAA4A26B1723314991E3FF7925DCCBAA62A49DA13AEC4785EF73089301B218",
 		sourceUrl: "https://github.com/lxgw/LxgwWenKai",
 		localUrl: "/game/fonts/LXGWWenKai-Regular.ttf",
 	},
@@ -390,6 +390,31 @@ async function bundleFonts() {
 	}
 	const missing = FONT_ASSETS.filter(font => !replaced.has(font.family));
 	if (missing.length) throw new Error(`Unable to patch bundled font URLs for: ${missing.map(font => font.family).join(", ")}`);
+	const primaryFamilies = new Map([
+		["Noto Sans Math,Noto Sans CJK TC", "Noto Sans Math"],
+		["LXGW WenKai,Noto Sans Math", "LXGW WenKai"],
+		["HanWangShinSuMedium,YujiBoku,Noto Sans Math,Noto Sans CJK TC", "HanWangShinSuMedium"],
+	]);
+	for (const relative of javascriptFiles) {
+		const filename = path.join(gameDirectory, "js", relative);
+		let source = await readFile(filename, "utf8");
+		const original = source;
+		for (const [fallbackList, primaryFamily] of primaryFamilies) {
+			source = source.replaceAll(`'${fallbackList}'`, `'${primaryFamily}'`);
+		}
+		if (source !== original) await writeFile(filename, source);
+	}
+	const assetsFilename = path.join(gameDirectory, "js", "utils", "Assets.js");
+	let assetsSource = await readFile(assetsFilename, "utf8");
+	const originalAssetsSource = assetsSource;
+	assetsSource = assetsSource.replace(
+		/\t\t\t\t\t\/\/ data: \{family\}, \/\/ https:\/\/github\.com\/Automattic\/node-canvas\/issues\/2369/,
+		"\t\t\t\t\tdata: {family},"
+	);
+	if (assetsSource === originalAssetsSource) {
+		throw new Error("Unable to enable explicit aliases for bundled Node fonts.");
+	}
+	await writeFile(assetsFilename, assetsSource);
 	await writeFile(path.join(fontDirectory, "SOURCES.json"), `${JSON.stringify(FONT_ASSETS.map(font => ({
 		file: font.name,
 		family: font.family,

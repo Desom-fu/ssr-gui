@@ -10,10 +10,11 @@ const node = path.join(stageDirectory, "runtime", executable("node"));
 const ffmpeg = path.join(stageDirectory, "runtime", executable("ffmpeg"));
 const cli = path.join(stageDirectory, "recorder", "cli.mjs");
 
-function run(command, args, timeout = 30_000) {
+function run(command, args, timeout = 30_000, environment = {}) {
 	return new Promise((resolve, reject) => {
 		const child = spawn(command, args, {
 			cwd: stageDirectory,
+			env: { ...process.env, ...environment },
 			stdio: ["ignore", "pipe", "pipe"],
 			windowsHide: true,
 		});
@@ -47,7 +48,7 @@ const buildInformation = JSON.parse(await readFile(path.join(stageDirectory, "bu
 if (process.env.SSR_EXPECT_BUNDLED_FONTS === "1") {
 	if (buildInformation.bundledFonts !== true) throw new Error("Package is not marked as the bundled-font edition.");
 	for (const filename of [
-		"NotoSansMath-Regular.ttf", "NotoSansCJKtc-Regular.otf", "wt071.ttf",
+		"NotoSansMath-Regular.ttf", "NotoSansCJKtc-Regular.otf", "HanWangShinSuMedium.ttf",
 		"YujiBoku-Regular.ttf", "LXGWWenKai-Regular.ttf", "SOURCES.json",
 	]) await access(path.join(stageDirectory, "recorder", "game", "fonts", filename));
 	for (const filename of [
@@ -60,13 +61,52 @@ if (process.env.SSR_EXPECT_BUNDLED_FONTS === "1") {
 		"js/ui/event/note/UiBgNote.js",
 	].map(filename => readFile(path.join(stageDirectory, "recorder", "game", filename), "utf8")));
 	for (const filename of [
-		"NotoSansMath-Regular.ttf", "NotoSansCJKtc-Regular.otf", "wt071.ttf",
+		"NotoSansMath-Regular.ttf", "NotoSansCJKtc-Regular.otf", "HanWangShinSuMedium.ttf",
 		"YujiBoku-Regular.ttf", "LXGWWenKai-Regular.ttf",
 	]) {
 		if (!gameSources.some(source => source.includes(`/game/fonts/${filename}`))) {
 			throw new Error(`Bundled font URL was not patched: ${filename}`);
 		}
 	}
+	for (const fallbackList of [
+		"Noto Sans Math,Noto Sans CJK TC",
+		"LXGW WenKai,Noto Sans Math",
+		"HanWangShinSuMedium,YujiBoku,Noto Sans Math,Noto Sans CJK TC",
+	]) {
+		if (gameSources.some(source => source.includes(`'${fallbackList}'`))) {
+			throw new Error(`Bundled-font renderer still uses a node-canvas fallback list: ${fallbackList}`);
+		}
+	}
+	const assetsSource = await readFile(path.join(stageDirectory, "recorder", "game", "js", "utils", "Assets.js"), "utf8");
+	if (!/parser: 'node-font',\r?\n\s*data: \{family\},/.test(assetsSource)) {
+		throw new Error("Bundled Node fonts are not registered with explicit family aliases.");
+	}
+	const fontProbe = String.raw`
+		const path = require('node:path');
+		const { createCanvas, registerFont } = require('canvas');
+		const fonts = [
+			['NotoSansMath-Regular.ttf', 'Noto Sans Math', 228.801],
+			['NotoSansCJKtc-Regular.otf', 'Noto Sans CJK TC', 222.000],
+			['HanWangShinSuMedium.ttf', 'HanWangShinSuMedium', 200.000],
+			['YujiBoku-Regular.ttf', 'YujiBoku', 320.000],
+			['LXGWWenKai-Regular.ttf', 'LXGW WenKai', 240.000],
+		];
+		for (const [filename, family] of fonts) {
+			registerFont(path.join(process.cwd(), 'recorder', 'game', 'fonts', filename), { family });
+		}
+		for (const [, family, expected] of fonts) {
+			const context = createCanvas(1000, 200).getContext('2d');
+			context.font = '100px ' + JSON.stringify(family);
+			const width = context.measureText('0000').width;
+			if (Math.abs(width - expected) > 0.2) throw new Error(family + ' rendered width ' + width + ', expected ' + expected);
+		}
+	`;
+	const fontEnvironment = process.platform === "win32" ? {
+		PANGOCAIRO_BACKEND: "fontconfig",
+		FONTCONFIG_FILE: path.join(stageDirectory, "app", "fonts.conf"),
+	} : {};
+	await run(node, ["-e", fontProbe], 30_000, fontEnvironment);
+	console.log("Bundled font rendering verified.");
 }
 console.log(await run(node, ["--version"]));
 await run(node, ["-e", "require('./node_modules/gl')"]);
