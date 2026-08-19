@@ -48,8 +48,12 @@
 	},
 	"devDependencies": {
 		"lucide-static": "^1.32.0",
+		"node-gyp": "12.4.0",
 		"nw": "^0.114.2",
 		"nw-builder": "^4.18.0",
 		"sharp": "^0.35.3"
+	},
+	"overrides": {
+		"node-gyp": "12.4.0"
 	}
 }

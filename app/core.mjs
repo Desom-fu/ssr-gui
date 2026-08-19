@@ -110,10 +110,20 @@ export function progressFromOutput(line, previous = 0) {
 	if (text.includes("combining video and audio")) return Math.max(previous, 88);
 	if (text.includes("exporting audio")) return Math.max(previous, 78);
 	if (text.includes("waiting for ffmpeg")) return Math.max(previous, 70);
+	if (text.includes("input #0, rawvideo") || /\bframe=\s*\d+/.test(text)) return Math.max(previous, 36);
 	if (text.includes("loading modules")) return Math.max(previous, 24);
 	if (text.includes("loading plugins")) return Math.max(previous, 14);
 	if (text.includes("loading")) return Math.max(previous, 7);
 	return previous;
+}
+export function recordingPhaseFromOutput(line) {
+	const text = String(line || "").toLowerCase();
+	if (text.includes("done!")) return "done";
+	if (text.includes("combining video and audio")) return "muxing";
+	if (text.includes("exporting audio")) return "audio";
+	if (text.includes("waiting for ffmpeg") || text.includes("input #0, rawvideo") || /\bframe=\s*\d+/.test(text)) return "rendering";
+	if (text.includes("loading")) return "preparing";
+	return "";
 }
 export function stripAnsi(value) {
 	return String(value || "").replace(/[\u001b\u009b][[\]()#;?]*(?:(?:(?:[a-zA-Z\d]*(?:;[-a-zA-Z\d\/#&.:=?%@~_]+)*)?\u0007)|(?:(?:\d{1,4}(?:[;:]\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~]))/g, "");

@@ -9,6 +9,7 @@ import {
 	RECORDER_FIELDS,
 	RECORDER_DEFAULTS,
 	progressFromOutput,
+	recordingPhaseFromOutput,
 	resolveRecorderOutputPath,
 	settingsForPreset,
 	stripAnsi,
@@ -108,13 +109,21 @@ test("recorder argument validation rejects unsafe numeric values", () => {
 
 test("progress is monotonic across recorder stages", () => {
 	let value = 0;
-	for (const line of ["Loading...", "Loading plugins", "Waiting for FFmpeg to finish eating the video...", "Exporting audio...", "Combining video and audio...", "Done!"]) {
+	for (const line of ["Loading...", "Loading plugins", "Input #0, rawvideo, from 'pipe:0':", "frame= 153 fps=152", "Waiting for FFmpeg to finish eating the video...", "Exporting audio...", "Combining video and audio...", "Done!"]) {
 		const next = progressFromOutput(line, value);
 		assert.ok(next >= value);
 		value = next;
 	}
 	assert.equal(value, 100);
 	assert.equal(progressFromOutput("Loading...", 88), 88);
+});
+
+test("recorder output switches the GUI from preparation to rendering", () => {
+	assert.equal(recordingPhaseFromOutput("Loading modules: 66/67"), "preparing");
+	assert.equal(recordingPhaseFromOutput("Input #0, rawvideo, from 'pipe:0':"), "rendering");
+	assert.equal(recordingPhaseFromOutput("frame= 153 fps=152 q=29.0"), "rendering");
+	assert.equal(recordingPhaseFromOutput("Exporting audio..."), "audio");
+	assert.equal(recordingPhaseFromOutput("Combining video and audio..."), "muxing");
 });
 
 test("ANSI control sequences are removed from logs", () => {

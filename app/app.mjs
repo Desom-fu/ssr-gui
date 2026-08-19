@@ -1,4 +1,4 @@
-import { FIELD_GROUPS, FIELD_LABELS, RECORDER_DEFAULTS, RECORDER_FIELDS, fieldGroup, outputFormat, progressFromOutput, replaceOutputExtension, settingsForPreset } from "./core.mjs";
+import { FIELD_GROUPS, FIELD_LABELS, RECORDER_DEFAULTS, RECORDER_FIELDS, fieldGroup, outputFormat, progressFromOutput, recordingPhaseFromOutput, replaceOutputExtension, settingsForPreset } from "./core.mjs";
 import { DesktopPlatform } from "./platform.mjs";
 
 const platform = new DesktopPlatform();
@@ -147,10 +147,11 @@ function appendLog(line, source = "stdout") {
 	elements["log-output"].scrollTop = elements["log-output"].scrollHeight;
 
 	state.progress = progressFromOutput(value, state.progress);
-	if (/loading/i.test(value)) setStatus("recording", "PREPARING", "正在载入资源", elapsed());
-	if (/waiting for ffmpeg/i.test(value)) setStatus("recording", "RENDERING", "正在写入画面", elapsed());
-	if (/exporting audio/i.test(value)) setStatus("recording", "AUDIO", "正在生成音频", elapsed());
-	if (/combining video and audio/i.test(value)) setStatus("recording", "MUXING", "正在封装视频", elapsed());
+	const phase = recordingPhaseFromOutput(value);
+	if (phase === "preparing") setStatus("recording", "PREPARING", "正在载入资源", elapsed());
+	if (phase === "rendering") setStatus("recording", "RENDERING", "正在生成画面", elapsed());
+	if (phase === "audio") setStatus("recording", "AUDIO", "正在生成音频", elapsed());
+	if (phase === "muxing") setStatus("recording", "MUXING", "正在封装视频", elapsed());
 	setProgress(state.progress, state.running && state.progress >= 7 && state.progress < 70);
 }
 
