@@ -53,3 +53,11 @@ test("Node is a minimum requirement, not a pinned runtime", async () => {
 	const workflow = await readFile(new URL("../.github/workflows/build.yml", import.meta.url), "utf8");
 	assert.match(workflow, /node-version: ['"]lts\/\*['"]/);
 });
+
+test("bundled LXGW WenKai assets use the real pinned Git tag", async () => {
+	const buildScript = await readFile(new URL("../scripts/build-nw.mjs", import.meta.url), "utf8");
+	assert.match(buildScript, /LxgwWenKai@v1\.245\.1\/fonts\/TTF\/LXGWWenKai-Regular\.ttf/);
+	assert.match(buildScript, /LxgwWenKai\/v1\.245\.1\/fonts\/TTF\/LXGWWenKai-Regular\.ttf/);
+	assert.match(buildScript, /LxgwWenKai\/v1\.245\.1\/OFL\.txt/);
+	assert.doesNotMatch(buildScript, /LxgwWenKai(?:@|\/)1\.245\.1\//);
+});
