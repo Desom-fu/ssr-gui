@@ -1,0 +1,53 @@
+{
+	"name": "ssr-gui",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"description": "Zero-configuration desktop GUI for sunniesnow-record",
+	"license": "AGPL-3.0-or-later",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Desom-fu/ssr-gui.git"
+	},
+	"bugs": {
+		"url": "https://github.com/Desom-fu/ssr-gui/issues"
+	},
+	"main": "app/index.html",
+	"window": {
+		"title": "Sunniesnow Recorder",
+		"width": 1080,
+		"height": 720,
+		"min_width": 760,
+		"min_height": 600,
+		"position": "center",
+		"icon": "app/assets/icon.png"
+	},
+	"scripts": {
+		"start": "node scripts/run-nw.mjs",
+		"build": "node scripts/build-nw.mjs",
+		"test": "node --test tests/*.test.mjs",
+		"verify:package": "node scripts/verify-package.mjs"
+	},
+	"dependencies": {
+		"@pixi/node": "^8.0.0",
+		"audio-decode": "^3.9.3",
+		"audiobuffer-to-wav": "^1.0.0",
+		"dompurify": "^3.4.0",
+		"ffmpeg-static": "^5.3.0",
+		"jsdom": "^29.0.2",
+		"jszip": "github:UlyssesZh/jszip#fix-node-blob",
+		"liquidjs": "^10.25.5",
+		"marked": "^18.0.2",
+		"mime": "^4.1.0",
+		"minimist": "^1.2.8",
+		"node-web-audio-api": "^1.0.9"
+	},
+	"devDependencies": {
+		"lucide-static": "^1.32.0",
+		"node": "22.23.2",
+		"nw": "^0.114.2",
+		"nw-builder": "^4.18.0",
+		"sharp": "^0.35.3"
+	}
+}
+
