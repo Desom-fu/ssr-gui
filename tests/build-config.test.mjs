@@ -39,6 +39,7 @@ test("CI contains native Windows, Linux, and macOS package jobs", async () => {
 	assert.match(workflow, /CXXFLAGS=-std=c\+\+20/);
 	assert.match(workflow, /azure\.archive\.ubuntu\.com\/ubuntu\|https:\/\/archive\.ubuntu\.com\/ubuntu/);
 	assert.match(workflow, /Acquire::Retries=3/);
+	assert.match(workflow, /cancel-in-progress: \$\{\{ !startsWith\(github\.ref, 'refs\/tags\/v'\) \}\}/);
 	assert.doesNotMatch(workflow, /npm rebuild gl/);
 });
 
