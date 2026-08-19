@@ -1,4 +1,4 @@
-import { buildRecorderArgs, stripAnsi } from "./core.mjs";
+import { buildRecorderArgs, resolveRecorderOutputPath, stripAnsi } from "./core.mjs";
 
 const fs = nw.require("node:fs");
 const path = nw.require("node:path");
@@ -112,9 +112,12 @@ export class DesktopPlatform {
 	async record(settings, handlers = {}) {
 		if (this.child) throw new Error("A recording is already running.");
 		const runtime = await this.verifyRuntime();
-		await fs.promises.mkdir(path.dirname(settings.outputPath), { recursive: true });
+		const outputPath = resolveRecorderOutputPath(settings);
+		await fs.promises.mkdir(path.dirname(outputPath), { recursive: true });
 		const args = buildRecorderArgs({
 			...settings,
+			output: outputPath,
+			outputPath,
 			cliPath: runtime.cli,
 			ffmpegPath: settings.ffmpeg || runtime.ffmpeg,
 			tempDir: settings.tempDir || runtime.temp,

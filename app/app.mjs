@@ -112,6 +112,7 @@ function collectRecorderSettings() {
 	values.noteSize = elements["note-size"].value;
 	values.resultsDuration = elements["results-duration"].value;
 	values.output = state.outputPath || customValues.output;
+	values.outputPath = values.output;
 	values.waitForMusic = elements["wait-music"].checked;
 	values.avoidDownloadingFonts = elements["system-fonts"].checked;
 	return values;
@@ -137,7 +138,7 @@ function setProgress(value, indeterminate = false) {
 function appendLog(line, source = "stdout") {
 	const value = String(line || "").trim();
 	if (!value) return;
-	state.logLines.push(source === "stderr" ? `[ffmpeg] ${value}` : value);
+	state.logLines.push(source === "stderr" ? `[recorder] ${value}` : source === "error" ? `[error] ${value}` : value);
 	if (state.logLines.length > 350) state.logLines.splice(0, state.logLines.length - 350);
 	elements["log-output"].textContent = state.logLines.join("\n");
 	elements["log-output"].scrollTop = elements["log-output"].scrollHeight;
@@ -263,7 +264,7 @@ async function beginRecording(event) {
 			elements["reveal-output"].hidden = false;
 		}
 	} catch (error) {
-		appendLog(error.stack || error.message || String(error), "stderr");
+		appendLog(error.stack || error.message || String(error), "error");
 		setStatus("failed", "FAILED", "录制失败", elapsed());
 		setProgress(state.progress);
 	} finally {

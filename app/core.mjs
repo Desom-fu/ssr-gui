@@ -49,6 +49,11 @@ export function inferOutputPath(levelPath, pathApi, extension = ".mkv") {
 	const parsed = pathApi.parse(levelPath);
 	return pathApi.join(parsed.dir, `${parsed.name}${extension}`);
 }
+export function resolveRecorderOutputPath(settings = {}) {
+	const outputPath = settings.outputPath || settings.output;
+	if (!String(outputPath || "").trim()) throw new TypeError("output path is required.");
+	return String(outputPath);
+}
 function slug(key) { return key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`); }
 function valueFor(definition, value) {
 	if (definition.type === "boolean") return String(Boolean(value));

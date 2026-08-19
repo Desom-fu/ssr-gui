@@ -7,6 +7,7 @@ import {
 	RECORDER_FIELDS,
 	RECORDER_DEFAULTS,
 	progressFromOutput,
+	resolveRecorderOutputPath,
 	settingsForPreset,
 	stripAnsi,
 } from "../app/core.mjs";
@@ -22,6 +23,12 @@ test("quality presets return independent settings", () => {
 test("output path follows the selected level", () => {
 	assert.equal(inferOutputPath(path.join("D:", "charts", "song.ssc"), path), path.join("D:", "charts", "song.mkv"));
 	assert.equal(inferOutputPath("", path), "");
+});
+
+test("desktop recording accepts recorder and legacy output field names", () => {
+	assert.equal(resolveRecorderOutputPath({ output: "video.mkv" }), "video.mkv");
+	assert.equal(resolveRecorderOutputPath({ outputPath: "legacy.mkv", output: "video.mkv" }), "legacy.mkv");
+	assert.throws(() => resolveRecorderOutputPath({}), /output path is required/);
 });
 
 test("recorder arguments use explicit values accepted by minimist adapter", () => {
