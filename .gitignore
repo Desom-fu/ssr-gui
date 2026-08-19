@@ -2,4 +2,5 @@ node_modules/
 build/
 *.log
 test-results/
-
+*.zip
+LOCAL_APPDATA_FONTCONFIG_CACHE/
