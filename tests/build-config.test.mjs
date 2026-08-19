@@ -37,6 +37,8 @@ test("CI contains native Windows, Linux, and macOS package jobs", async () => {
 	assert.match(workflow, /softprops\/action-gh-release/);
 	assert.match(workflow, /node node_modules\/node-gyp\/bin\/node-gyp\.js rebuild --directory node_modules\/gl/);
 	assert.match(workflow, /CXXFLAGS=-std=c\+\+20/);
+	assert.match(workflow, /azure\.archive\.ubuntu\.com\/ubuntu\|https:\/\/archive\.ubuntu\.com\/ubuntu/);
+	assert.match(workflow, /Acquire::Retries=3/);
 	assert.doesNotMatch(workflow, /npm rebuild gl/);
 });
 
