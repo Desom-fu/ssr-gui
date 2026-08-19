@@ -26,18 +26,67 @@ jobs:
       matrix:
         include:
           - os: windows-latest
+            targetPlatform: win32
+            targetArch: ia32
+            # The 32-bit NW.js launcher delegates recording to the x64 Node
+            # runtime because @pixi/node's native WebGL dependency has no
+            # upstream ia32 binary.
+            nativeArch: x64
+            runtimeArch: x64
+            artifact: ssr-gui-windows-x86
+            archive: zip
+            ffmpegRelease: b6.1.1
+          - os: windows-latest
+            targetPlatform: win32
+            targetArch: x64
+            nativeArch: x64
+            runtimeArch: x64
             artifact: ssr-gui-windows-x64
-            architecture: x64
+            archive: zip
+            ffmpegRelease: b6.1.1
+          - os: windows-latest
+            targetPlatform: win32
+            targetArch: arm64
+            nativeArch: x64
+            runtimeArch: x64
+            artifact: ssr-gui-windows-arm64
+            archive: zip
+            ffmpegRelease: b6.1.1
           - os: ubuntu-latest
+            targetPlatform: linux
+            targetArch: x64
+            nativeArch: x64
+            runtimeArch: x64
             artifact: ssr-gui-linux-x64
-            architecture: x64
+            archive: tar.gz
+          - os: ubuntu-24.04-arm
+            targetPlatform: linux
+            targetArch: arm64
+            nativeArch: arm64
+            runtimeArch: arm64
+            artifact: ssr-gui-linux-arm64
+            archive: tar.gz
           - os: macos-15-intel
+            targetPlatform: darwin
+            targetArch: x64
+            nativeArch: x64
+            runtimeArch: x64
             artifact: ssr-gui-macos-x64
-            architecture: x64
+            archive: zip
           - os: macos-15
+            targetPlatform: darwin
+            targetArch: arm64
+            nativeArch: arm64
+            runtimeArch: arm64
             artifact: ssr-gui-macos-arm64
-            architecture: arm64
+            archive: zip
     runs-on: ${{ matrix.os }}
+    env:
+      SSR_TARGET_PLATFORM: ${{ matrix.targetPlatform }}
+      SSR_TARGET_ARCH: ${{ matrix.targetArch }}
+      SSR_RUNTIME_ARCH: ${{ matrix.runtimeArch }}
+      npm_config_arch: ${{ matrix.nativeArch }}
+      FFMPEG_BINARY_RELEASE: ${{ matrix.ffmpegRelease }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -56,38 +105,21 @@ jobs:
         shell: pwsh
         run: |
           New-Item -Path "$env:RUNNER_TEMP\ssr-gui-native" -ItemType Directory -Force | Out-Null
-          Invoke-WebRequest https://ftp.gnome.org/pub/GNOME/binaries/win64/gtk+/2.22/gtk+-bundle_2.22.1-20101229_win64.zip -OutFile "$env:RUNNER_TEMP\ssr-gui-native\gtk.zip"
+          Invoke-WebRequest "https://ftp.gnome.org/pub/GNOME/binaries/win64/gtk+/2.22/gtk+-bundle_2.22.1-20101229_win64.zip" -OutFile "$env:RUNNER_TEMP\ssr-gui-native\gtk.zip"
           Expand-Archive "$env:RUNNER_TEMP\ssr-gui-native\gtk.zip" -DestinationPath C:\GTK -Force
-          Invoke-WebRequest https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/2.1.5.1/libjpeg-turbo-2.1.5.1-vc64.exe -OutFile "$env:RUNNER_TEMP\ssr-gui-native\libjpeg-turbo.exe"
+          Invoke-WebRequest "https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/2.1.5.1/libjpeg-turbo-2.1.5.1-vc64.exe" -OutFile "$env:RUNNER_TEMP\ssr-gui-native\libjpeg-turbo.exe"
           & "$env:RUNNER_TEMP\ssr-gui-native\libjpeg-turbo.exe" /S
 
       - name: Install macOS native build dependencies
         if: runner.os == 'macOS'
         run: brew install pkg-config cairo pango libpng jpeg giflib librsvg pixman
 
-      - run: npm ci
+      - name: Install JavaScript and native dependencies
+        run: npm ci --no-audit --no-fund
 
-      - name: Verify runner architecture
-        shell: bash
-        run: node -e "if (process.arch !== '${{ matrix.architecture }}') throw new Error('Expected ${{ matrix.architecture }}, got ' + process.arch)"
-
-      - name: Rebuild Linux native modules
-        if: runner.os == 'Linux'
-        run: |
-          npm rebuild gl --build-from-source --verbose
-          npm rebuild canvas --build-from-source --verbose
-
-      - name: Rebuild Windows native modules
-        if: runner.os == 'Windows'
-        run: |
-          npm rebuild gl --build-from-source --verbose
-          npm rebuild canvas --build-from-source --verbose
-
-      - name: Rebuild macOS native modules
-        if: runner.os == 'macOS'
-        run: |
-          npm rebuild gl --build-from-source --verbose
-          npm rebuild canvas --build-from-source --verbose
+      - name: Build headless WebGL for Linux ARM64
+        if: runner.os == 'Linux' && matrix.targetArch == 'arm64'
+        run: npm rebuild gl --build-from-source --verbose
 
       - run: npm test
       - run: npm run build
@@ -107,14 +139,25 @@ jobs:
         if: runner.os == 'macOS'
         run: SSR_VERIFY_RECORDER=1 npm run verify:package
 
-      - name: Archive package
+      - name: Archive Windows package
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path build/nw/* -DestinationPath "${{ matrix.artifact }}.zip" -CompressionLevel Optimal
+
+      - name: Archive macOS package
+        if: runner.os == 'macOS'
+        shell: bash
+        run: (cd build/nw && zip -qry "../../${{ matrix.artifact }}.zip" .)
+
+      - name: Archive Linux package
+        if: runner.os == 'Linux'
         shell: bash
         run: tar -czf "${{ matrix.artifact }}.tar.gz" -C build/nw .
 
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}.tar.gz
+          path: ${{ matrix.artifact }}.${{ matrix.archive }}
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -129,4 +172,4 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v3
         with:
-          files: release/*.tar.gz
+          files: release/*

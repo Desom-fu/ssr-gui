@@ -10,11 +10,11 @@ The interface intentionally exposes only the common workflow: choose an `.ssc`, 
 
 GitHub Actions builds native packages for:
 
-- Windows x64: run `ssr-gui.exe` and keep the complete extracted folder together.
-- Linux x64: run `ssr-gui` from the extracted folder.
-- macOS x64 and Apple Silicon: open `ssr-gui.app`.
+- Windows x86, x64, and ARM64: extract the ZIP and run `ssr-gui.exe`; keep the complete extracted folder together. The x86 build uses a 32-bit launcher with the bundled x64 Node recording engine, so it requires 64-bit Windows.
+- Linux x64 and ARM64: extract the matching tar.gz and run `ssr-gui` from the extracted folder.
+- macOS x64 and Apple Silicon: extract the ZIP and open `ssr-gui.app`.
 
-Build artifacts are attached to every CI run triggered by a push. Git tags beginning with `v` also create a GitHub Release containing all platform archives. A commit message such as `v0.0.1` is not a tag and does not create a release. Create and push a release tag explicitly:
+Build artifacts are attached to every CI run triggered by a push. Windows and macOS artifacts are ZIP files; Linux is tar.gz. Git tags beginning with `v` also create a GitHub Release containing all platform archives. A commit message such as `v0.0.1` is not a tag and does not create a release. Create and push a release tag explicitly:
 
 ```shell
 git tag v0.0.1

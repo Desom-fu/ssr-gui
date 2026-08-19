@@ -7,7 +7,7 @@ const projectDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url
 const stageDirectory = path.join(projectDirectory, "build", "stage");
 const executable = name => process.platform === "win32" ? `${name}.exe` : name;
 const node = path.join(stageDirectory, "runtime", executable("node"));
-const ffmpeg = path.join(stageDirectory, "node_modules", "ffmpeg-static", executable("ffmpeg"));
+const ffmpeg = path.join(stageDirectory, "runtime", executable("ffmpeg"));
 const cli = path.join(stageDirectory, "recorder", "cli.mjs");
 
 function run(command, args, timeout = 30_000) {
@@ -40,6 +40,7 @@ for (const filename of [
 	path.join(stageDirectory, "licenses", "Node.js-LICENSE.txt"),
 	path.join(stageDirectory, "licenses", "NW.js-LICENSE.txt"),
 	path.join(stageDirectory, "licenses", "Lucide-LICENSE.txt"),
+	path.join(stageDirectory, "licenses", "FFmpeg-LICENSE.txt"),
 ]) await access(filename);
 console.log(await run(node, ["--version"]));
 console.log((await run(ffmpeg, ["-version"])).split(/\r?\n/)[0]);

@@ -1,11 +1,11 @@
-import { progressFromOutput, settingsForPreset } from "./core.mjs";
+import { FIELD_GROUPS, FIELD_LABELS, RECORDER_DEFAULTS, RECORDER_FIELDS, fieldGroup, progressFromOutput, settingsForPreset } from "./core.mjs";
 import { DesktopPlatform } from "./platform.mjs";
 
 const platform = new DesktopPlatform();
 const elements = Object.fromEntries([
 	"record-form", "runtime-badge", "choose-level", "level-name", "level-path", "chart-select",
 	"choose-output", "output-path", "video-width", "video-height", "video-fps", "speed", "note-size", "wait-music", "system-fonts",
-	"results-duration", "start-record", "cancel-record", "state-mark", "state-eyebrow",
+	"results-duration", "advanced-groups", "start-record", "cancel-record", "state-mark", "state-eyebrow",
 	"state-title", "state-detail", "progress-bar", "reveal-output", "log-output", "clear-log",
 ].map(id => [id, document.getElementById(id)]));
 
@@ -19,6 +19,103 @@ const state = {
 	timer: 0,
 	logLines: [],
 };
+
+const customValues = { ...RECORDER_DEFAULTS };
+
+function displayLabel(field) {
+	return FIELD_LABELS[field.key] || field.key.replace(/([A-Z])/g, " $1").replace(/^./, value => value.toUpperCase());
+}
+
+function makeFieldControl(definition) {
+	const wrapper = document.createElement("label");
+	wrapper.className = "advanced-field";
+	const label = document.createElement("span");
+	label.textContent = displayLabel(definition);
+	wrapper.append(label);
+	let control;
+	if (definition.type === "boolean") {
+		control = document.createElement("input");
+		control.type = "checkbox";
+		control.checked = Boolean(definition.defaultValue);
+		wrapper.classList.add("advanced-toggle");
+		wrapper.append(control, document.createTextNode("启用"));
+	} else if (definition.type === "select") {
+		control = document.createElement("select");
+		for (const value of definition.options || []) {
+			const option = document.createElement("option");
+			option.value = value;
+			option.textContent = value;
+			control.append(option);
+		}
+		control.value = definition.defaultValue ?? "";
+		wrapper.append(control);
+	} else {
+		control = document.createElement("input");
+		control.type = definition.type === "number" ? "number" : definition.type === "file" || definition.type === "file-array" ? "file" : "text";
+		if (definition.type === "file-array") control.multiple = true;
+		if (definition.accept) control.accept = definition.accept;
+		if (definition.type === "number") {
+			if (definition.min != null) control.min = String(definition.min);
+			if (definition.max != null) control.max = String(definition.max);
+			if (definition.step != null) control.step = String(definition.step);
+		}
+		if (definition.type !== "file" && definition.type !== "file-array") control.value = definition.defaultValue == null ? "" : Array.isArray(definition.defaultValue) ? definition.defaultValue.join(", ") : String(definition.defaultValue);
+		wrapper.append(control);
+	}
+	control.id = `setting-${definition.key}`;
+	control.dataset.setting = definition.key;
+	control.addEventListener("change", () => updateCustomValue(definition, control));
+	control.addEventListener("input", () => updateCustomValue(definition, control));
+	return wrapper;
+}
+
+function updateCustomValue(definition, control) {
+	if (definition.type === "boolean") customValues[definition.key] = control.checked;
+	else if (definition.type === "file" || definition.type === "path") customValues[definition.key] = control.files?.[0]?.path || control.value;
+	else if (definition.type === "file-array") customValues[definition.key] = [...(control.files || [])].map(file => file.path || file.name);
+	else if (definition.type === "array") customValues[definition.key] = control.value.split(",").map(item => item.trim()).filter(Boolean);
+	else customValues[definition.key] = control.value;
+	if (["width", "height", "fps", "speed", "noteSize", "resultsDuration"].includes(definition.key)) syncShortcut(definition.key, customValues[definition.key]);
+	updateActions();
+}
+
+function syncShortcut(key, value) {
+	const shortcutIds = { width: "video-width", height: "video-height", fps: "video-fps", speed: "speed", noteSize: "note-size", resultsDuration: "results-duration" };
+	const element = elements[shortcutIds[key]];
+	if (element && document.activeElement !== element) element.value = value;
+}
+
+function renderAdvancedSettings() {
+	const groups = new Map(FIELD_GROUPS.map(group => {
+		const details = document.createElement("details");
+		details.className = "advanced-group";
+		const summary = document.createElement("summary");
+		summary.textContent = group.label;
+		details.append(summary);
+		elements["advanced-groups"].append(details);
+		return [group.id, details];
+	}));
+	for (const definition of RECORDER_FIELDS) groups.get(fieldGroup(definition.key)).append(makeFieldControl(definition));
+}
+
+function collectRecorderSettings() {
+	const values = { ...customValues };
+	if (state.levelPath) {
+		values.levelFile = "upload";
+		values.levelFileUpload = state.levelPath;
+	}
+	values.chartSelect = elements["chart-select"].value || values.chartSelect;
+	values.width = elements["video-width"].value;
+	values.height = elements["video-height"].value;
+	values.fps = elements["video-fps"].value;
+	values.speed = elements.speed.value;
+	values.noteSize = elements["note-size"].value;
+	values.resultsDuration = elements["results-duration"].value;
+	values.output = state.outputPath || customValues.output;
+	values.waitForMusic = elements["wait-music"].checked;
+	values.avoidDownloadingFonts = elements["system-fonts"].checked;
+	return values;
+}
 
 function basename(filename) {
 	return filename ? platform.path.basename(filename) : "";
@@ -67,11 +164,12 @@ function startTimer() {
 }
 
 function updateActions() {
-	const ready = state.runtimeReady && Boolean(state.levelPath && state.outputPath);
+	const onlineReady = customValues.levelFile === "online" && Boolean(String(customValues.levelFileOnline || "").trim());
+	const ready = state.runtimeReady && Boolean((state.levelPath || onlineReady) && (state.outputPath || customValues.output));
 	elements["start-record"].disabled = !ready || state.running;
 	elements["cancel-record"].disabled = !state.running;
 	elements["choose-level"].disabled = state.running;
-	elements["choose-output"].disabled = !state.levelPath || state.running;
+	elements["choose-output"].disabled = !(state.levelPath || onlineReady) || state.running;
 	elements["chart-select"].disabled = !state.levelPath || state.running || elements["chart-select"].options.length < 2;
 	document.querySelectorAll("input, select").forEach(element => {
 		if (element.id !== "chart-select") element.disabled = state.running;
@@ -118,22 +216,6 @@ async function chooseOutput() {
 	updateActions();
 }
 
-function recordingSettings() {
-	return {
-		width: elements["video-width"].value,
-		height: elements["video-height"].value,
-		fps: elements["video-fps"].value,
-		levelPath: state.levelPath,
-		outputPath: state.outputPath,
-		chartSelect: elements["chart-select"].value,
-		speed: elements.speed.value,
-		noteSize: elements["note-size"].value,
-		resultsDuration: elements["results-duration"].value,
-		waitForMusic: elements["wait-music"].checked,
-		avoidDownloadingFonts: elements["system-fonts"].checked,
-	};
-}
-
 function applyQualityPreset(name) {
 	if (name === "custom") return;
 	const preset = settingsForPreset(name);
@@ -168,7 +250,7 @@ async function beginRecording(event) {
 	startTimer();
 	updateActions();
 	try {
-		const result = await platform.record(recordingSettings(), { onOutput: appendLog });
+		const result = await platform.record(collectRecorderSettings(), { onOutput: appendLog });
 		if (result.cancelled) {
 			setStatus("", "CANCELLED", "录制已取消", elapsed());
 			appendLog("Recording cancelled.");
@@ -238,6 +320,8 @@ elements["choose-level"].addEventListener("drop", event => {
 	const filename = event.dataTransfer?.files?.[0]?.path;
 	if (filename) useLevel(filename).catch(error => appendLog(error.message, "stderr"));
 });
+
+renderAdvancedSettings();
 
 nw.Window.get().on("close", function onClose() {
 	if (!state.running) return this.close(true);

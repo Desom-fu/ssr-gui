@@ -14,6 +14,14 @@ const buildDirectory = path.join(projectDirectory, "build");
 const stageDirectory = path.join(buildDirectory, "stage");
 const outputDirectory = path.join(buildDirectory, "nw");
 const cacheDirectory = path.join(projectDirectory, "node_modules", ".cache", "ssr-gui");
+const TARGET_PLATFORM = process.env.SSR_TARGET_PLATFORM || process.platform;
+const TARGET_ARCH = ({ x86: "ia32", amd64: "x64", aarch64: "arm64" })[process.env.SSR_TARGET_ARCH] || process.env.SSR_TARGET_ARCH || process.arch;
+const RUNTIME_ARCH = ({ x86: "ia32", amd64: "x64", aarch64: "arm64" })[process.env.SSR_RUNTIME_ARCH] || process.env.SSR_RUNTIME_ARCH || TARGET_ARCH;
+const NW_PLATFORM = ({ win32: "win", darwin: "osx", linux: "linux" })[TARGET_PLATFORM] || TARGET_PLATFORM;
+const WINDOWS_NODE_ARCH = ({ ia32: "x86", x64: "x64", arm64: "arm64" })[RUNTIME_ARCH] || RUNTIME_ARCH;
+if (!["win32", "darwin", "linux"].includes(TARGET_PLATFORM)) throw new Error(`Unsupported target platform: ${TARGET_PLATFORM}`);
+if (!["ia32", "x64", "arm64"].includes(TARGET_ARCH)) throw new Error(`Unsupported target architecture: ${TARGET_ARCH}`);
+if (!["ia32", "x64", "arm64"].includes(RUNTIME_ARCH)) throw new Error(`Unsupported runtime architecture: ${RUNTIME_ARCH}`);
 const RECORDER_COMMIT = "b1a67fa6bbc7e8541583628d3d532300824d0c65";
 const NODE_LICENSE = Object.freeze({
 	version: "22.23.2",
@@ -163,13 +171,36 @@ async function copyProductionDependencies() {
 }
 
 async function copyRuntime() {
-	const filename = process.platform === "win32" ? "node.exe" : "node";
-	const source = path.join(projectDirectory, "node_modules", "node", "bin", filename);
-	if (!existsSync(source)) throw new Error(`Bundled Node executable is missing: ${source}`);
+	const filename = TARGET_PLATFORM === "win32" ? "node.exe" : "node";
+	const runtimePackage = TARGET_PLATFORM === "win32"
+		? `node-win-${WINDOWS_NODE_ARCH}`
+		: `node-${TARGET_PLATFORM === "darwin" ? "darwin" : "linux"}-${RUNTIME_ARCH}`;
+	const candidates = [
+		path.join(projectDirectory, "node_modules", "node", "node_modules", runtimePackage, "bin", filename),
+		path.join(projectDirectory, "node_modules", runtimePackage, "bin", filename),
+		path.join(projectDirectory, "node_modules", "node", "bin", filename),
+	];
+	const source = candidates.find(filename => existsSync(filename));
+	if (!source) throw new Error(`Bundled Node executable is missing for ${TARGET_PLATFORM}/${TARGET_ARCH}. Checked: ${candidates.join(", ")}`);
 	const destination = path.join(stageDirectory, "runtime", filename);
 	await mkdir(path.dirname(destination), { recursive: true });
 	await cp(source, destination);
-	if (process.platform !== "win32") await chmod(destination, 0o755);
+	if (TARGET_PLATFORM !== "win32") await chmod(destination, 0o755);
+}
+
+async function copyFfmpeg() {
+	const filename = TARGET_PLATFORM === "win32" ? "ffmpeg.exe" : "ffmpeg";
+	const source = path.join(projectDirectory, "node_modules", "ffmpeg-static", filename);
+	if (!existsSync(source)) throw new Error(`FFmpeg executable is missing: ${source}`);
+	const destination = path.join(stageDirectory, "runtime", filename);
+	await mkdir(path.dirname(destination), { recursive: true });
+	await cp(source, destination);
+	const licenseSource = `${source}.LICENSE`;
+	if (existsSync(licenseSource)) {
+		await mkdir(path.join(stageDirectory, "licenses"), { recursive: true });
+		await cp(licenseSource, path.join(stageDirectory, "licenses", "FFmpeg-LICENSE.txt"));
+	}
+	if (TARGET_PLATFORM !== "win32") await chmod(destination, 0o755);
 }
 
 async function copyLucideIcons() {
@@ -262,7 +293,7 @@ async function generateIcons() {
 			.toFile(path.join(stageDirectory, "app", "assets", "icon.png")),
 		generateWindowsIcon(source, path.join(stageDirectory, "icon.ico")),
 	]);
-	if (process.platform === "darwin") {
+	if (TARGET_PLATFORM === "darwin") {
 		await generateMacosIcon(source, path.join(stageDirectory, "icon.icns"));
 	}
 }
@@ -274,8 +305,9 @@ async function fileSha256(filename) {
 async function writeBuildInformation(recorder) {
 	const information = {
 		builtAt: new Date().toISOString(),
-		platform: process.platform,
-		architecture: process.arch,
+		platform: TARGET_PLATFORM,
+		architecture: TARGET_ARCH,
+		runtimeArchitecture: RUNTIME_ARCH,
 		recorderCommit: recorder.commit || null,
 	};
 	try { information.commit = await gitOutput(projectDirectory, ["rev-parse", "HEAD"]); } catch { /* source archive */ }
@@ -306,14 +338,14 @@ async function prepareStage() {
 		await cp(source, path.join(stageDirectory, filename));
 	}
 	const recorder = await copyRecorder();
-	await Promise.all([copyProductionDependencies(), copyRuntime(), copyLucideIcons(), copyThirdPartyLicenses()]);
+	await Promise.all([copyProductionDependencies(), copyRuntime(), copyFfmpeg(), copyLucideIcons(), copyThirdPartyLicenses()]);
 	await generateIcons();
 	await writeBuildInformation(recorder);
 	return sourcePackage;
 }
 
 async function signMacApplication() {
-	if (process.platform !== "darwin") return;
+	if (TARGET_PLATFORM !== "darwin") return;
 	const app = (await readdir(outputDirectory)).find(name => name.endsWith(".app"));
 	if (!app) throw new Error("The macOS application bundle was not produced.");
 	await run("codesign", ["--force", "--deep", "--sign", "-", path.join(outputDirectory, app)]);
@@ -337,13 +369,15 @@ async function main() {
 			outDir: outputDirectory,
 			cacheDir: path.join(projectDirectory, "node_modules", "nw"),
 			logLevel: "info",
-			app: builderApplicationOptions(process.platform, sourcePackage),
+			platform: NW_PLATFORM,
+			arch: TARGET_ARCH,
+			app: builderApplicationOptions(TARGET_PLATFORM, sourcePackage),
 		});
 	} finally {
 		process.chdir(previousDirectory);
 	}
 	await signMacApplication();
-	console.log(`ssr-gui ${process.platform}/${process.arch} written to ${outputDirectory}`);
+	console.log(`ssr-gui ${TARGET_PLATFORM}/${TARGET_ARCH} written to ${outputDirectory}`);
 }
 
 await main();

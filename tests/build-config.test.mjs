@@ -24,6 +24,11 @@ test("CI contains native Windows, Linux, and macOS package jobs", async () => {
 	for (const runner of ["windows-latest", "ubuntu-latest", "macos-15-intel", "macos-15"]) {
 		assert.match(workflow, new RegExp(runner));
 	}
+	for (const artifact of ["ssr-gui-windows-x86", "ssr-gui-windows-x64", "ssr-gui-windows-arm64", "ssr-gui-linux-x64", "ssr-gui-linux-arm64", "ssr-gui-macos-x64", "ssr-gui-macos-arm64"]) {
+		assert.match(workflow, new RegExp(artifact));
+	}
+	assert.match(workflow, /Compress-Archive/);
+	assert.match(workflow, /zip -qry/);
+	assert.match(workflow, /tar -czf/);
 	assert.match(workflow, /softprops\/action-gh-release/);
 });
-

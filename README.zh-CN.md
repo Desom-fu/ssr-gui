@@ -10,11 +10,11 @@
 
 GitHub Actions 会原生构建以下版本：
 
-- Windows x64：运行 `ssr-gui.exe`，不要拆分发行目录中的文件。
-- Linux x64：运行解压目录中的 `ssr-gui`。
-- macOS x64 与 Apple Silicon：打开 `ssr-gui.app`。
+- Windows x86、x64 与 ARM64：解压 ZIP 后运行 `ssr-gui.exe`，不要拆分发行目录中的文件。x86 版本的界面启动器为 32 位，录制引擎使用随包附带的 x64 Node 运行时，因此 x86 启动器需要运行在 64 位 Windows 上。
+- Linux x64 与 ARM64：解压对应的 tar.gz 后运行目录中的 `ssr-gui`。
+- macOS x64 与 Apple Silicon：解压 ZIP 后打开 `ssr-gui.app`。
 
-每次 push 触发的 CI 都会保存构建产物；推送以 `v` 开头的 Git tag 时，还会创建包含全部平台压缩包的 GitHub Release。把 commit message 写成 `v0.0.1` 并不等于创建 tag，也不会发布。需要明确创建并推送 tag：
+每次 push 触发的 CI 都会保存构建产物；Windows/macOS 使用 ZIP，Linux 使用 tar.gz。推送以 `v` 开头的 Git tag 时，还会创建包含全部平台压缩包的 GitHub Release。把 commit message 写成 `v0.0.1` 并不等于创建 tag，也不会发布。需要明确创建并推送 tag：
 
 ```shell
 git tag v0.0.1

@@ -413,6 +413,90 @@ button:disabled {
 	align-items: center;
 }
 
+.advanced-settings {
+	padding: 16px 22px 18px;
+	border-bottom: 1px solid var(--line);
+}
+
+.advanced-settings > summary,
+.advanced-group > summary {
+	cursor: pointer;
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.advanced-settings > summary {
+	color: var(--accent-strong);
+}
+
+.advanced-note {
+	margin: 9px 0 12px;
+	color: var(--muted);
+	font-size: 11px;
+	line-height: 1.5;
+}
+
+.advanced-group {
+	margin-top: 8px;
+	border: 1px solid var(--line);
+	border-radius: 5px;
+	background: var(--bg);
+}
+
+.advanced-group > summary {
+	padding: 9px 10px;
+	color: var(--muted);
+}
+
+.advanced-field {
+	min-width: 0;
+	display: grid;
+	grid-template-columns: 112px minmax(0, 1fr);
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	color: var(--muted);
+	font-size: 10px;
+}
+
+.advanced-field + .advanced-field {
+	border-top: 1px solid color-mix(in srgb, var(--line) 65%, transparent);
+}
+
+.advanced-field input[type="text"],
+.advanced-field input[type="number"],
+.advanced-field input[type="file"],
+.advanced-field select {
+	width: 100%;
+	min-width: 0;
+	height: 29px;
+	padding: 0 7px;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	background: var(--surface);
+	color: var(--text);
+	font-size: 10px;
+}
+
+.advanced-field input[type="file"] {
+	padding: 4px;
+}
+
+.advanced-toggle {
+	display: flex;
+	grid-template-columns: none;
+	justify-content: flex-start;
+	gap: 7px;
+}
+
+.advanced-toggle span {
+	margin-right: auto;
+}
+
+.advanced-toggle input {
+	accent-color: var(--accent);
+}
+
 .suffix-input {
 	display: flex;
 	align-items: center;

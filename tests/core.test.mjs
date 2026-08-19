@@ -4,6 +4,8 @@ import path from "node:path";
 import {
 	buildRecorderArgs,
 	inferOutputPath,
+	RECORDER_FIELDS,
+	RECORDER_DEFAULTS,
 	progressFromOutput,
 	settingsForPreset,
 	stripAnsi,
@@ -42,7 +44,30 @@ test("recorder arguments use explicit values accepted by minimist adapter", () =
 	assert.equal(args[0], "/app/cli.mjs");
 	assert.deepEqual(args.slice(args.indexOf("--wait-for-music"), args.indexOf("--wait-for-music") + 2), ["--wait-for-music", "true"]);
 	assert.deepEqual(args.slice(args.indexOf("--avoid-downloading-fonts"), args.indexOf("--avoid-downloading-fonts") + 2), ["--avoid-downloading-fonts", "false"]);
-	assert.deepEqual(args.slice(-2), ["--chart-select", "master.json"]);
+	const chartIndex = args.indexOf("--chart-select");
+	assert.deepEqual(args.slice(chartIndex, chartIndex + 2), ["--chart-select", "master.json"]);
+	const outputIndex = args.indexOf("--output");
+	assert.deepEqual(args.slice(outputIndex, outputIndex + 2), ["--output", "/videos/song.mkv"]);
+});
+
+test("the GUI schema covers all 85 recorder defaults exactly once", async () => {
+	const fs = await import("node:fs/promises");
+	const path = await import("node:path");
+	const sourcePath = process.env.SSR_RECORD_SOURCE
+		? path.join(process.env.SSR_RECORD_SOURCE, "record.mjs")
+		: path.resolve("../sunniesnow-record/record.mjs");
+	let source = "";
+	try { source = await fs.readFile(sourcePath, "utf8"); } catch { /* CI may not checkout the sibling source. */ }
+	if (!source) {
+		assert.equal(RECORDER_FIELDS.length, 85);
+		assert.equal(new Set(RECORDER_FIELDS.map(field => field.key)).size, 85);
+		return;
+	}
+	const block = source.match(/static DEFAULT_SETTINGS = \{([\s\S]*?)\n\t\}/)?.[1] || "";
+	const upstreamKeys = [...block.matchAll(/^\t\t([A-Za-z0-9]+):/gm)].map(match => match[1]);
+	assert.equal(upstreamKeys.length, 85);
+	assert.deepEqual(RECORDER_FIELDS.map(field => field.key), upstreamKeys);
+	assert.deepEqual(Object.keys(RECORDER_DEFAULTS), upstreamKeys);
 });
 
 test("recorder argument validation rejects unsafe numeric values", () => {
@@ -69,4 +94,3 @@ test("progress is monotonic across recorder stages", () => {
 test("ANSI control sequences are removed from logs", () => {
 	assert.equal(stripAnsi("\u001b[31merror\u001b[0m"), "error");
 });
-

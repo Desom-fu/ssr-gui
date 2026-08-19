@@ -51,7 +51,7 @@ export class DesktopPlatform {
 		return {
 			node: path.join(packageDirectory, "runtime", executableName("node")),
 			cli: path.join(packageDirectory, "recorder", "cli.mjs"),
-			ffmpeg: nw.require("ffmpeg-static"),
+			ffmpeg: path.join(packageDirectory, "runtime", executableName("ffmpeg")),
 			temp: path.join(nw.App.dataPath, "render-cache"),
 		};
 	}
@@ -116,8 +116,8 @@ export class DesktopPlatform {
 		const args = buildRecorderArgs({
 			...settings,
 			cliPath: runtime.cli,
-			ffmpegPath: runtime.ffmpeg,
-			tempDir: runtime.temp,
+			ffmpegPath: settings.ffmpeg || runtime.ffmpeg,
+			tempDir: settings.tempDir || runtime.temp,
 		});
 		this.cancelled = false;
 		const child = spawn(runtime.node, args, {
