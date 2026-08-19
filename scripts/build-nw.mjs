@@ -26,7 +26,10 @@ const RECORDER_COMMIT = "b1a67fa6bbc7e8541583628d3d532300824d0c65";
 const NODE_LICENSE = Object.freeze({
 	version: "22.23.2",
 	sha256: "C738AE413CF561F174E34F6961F8CA458AAE2369A73640DDA6234C629B98BCC4",
-	url: "https://raw.githubusercontent.com/nodejs/node/v22.23.2/LICENSE",
+	urls: Object.freeze([
+		"https://raw.githubusercontent.com/nodejs/node/v22.23.2/LICENSE",
+		"https://github.com/nodejs/node/raw/refs/tags/v22.23.2/LICENSE",
+	]),
 });
 
 function assertInsideProject(target) {
@@ -216,17 +219,30 @@ async function copyLucideIcons() {
 async function verifiedDownload(asset, destination) {
 	const verify = async filename => (await fileSha256(filename)).toUpperCase() === asset.sha256;
 	if (existsSync(destination) && await verify(destination)) return;
-	const response = await fetch(asset.url, {
-		headers: { "User-Agent": "ssr-gui-builder/0.1" },
-		signal: AbortSignal.timeout(120_000),
-	});
-	if (!response.ok) throw new Error(`Unable to download ${asset.url}: HTTP ${response.status}`);
 	await mkdir(path.dirname(destination), { recursive: true });
-	await writeFile(destination, new Uint8Array(await response.arrayBuffer()));
-	if (!await verify(destination)) {
-		await rm(destination, { force: true });
-		throw new Error(`SHA-256 mismatch for ${asset.url}`);
+	const temporary = `${destination}.download`;
+	const urls = asset.urls || [asset.url];
+	const errors = [];
+	for (const url of urls) {
+		for (let attempt = 1; attempt <= 3; attempt += 1) {
+			try {
+				const response = await fetch(url, {
+					headers: { "User-Agent": "ssr-gui-builder/0.1" },
+					signal: AbortSignal.timeout(60_000),
+				});
+				if (!response.ok) throw new Error(`HTTP ${response.status}`);
+				await writeFile(temporary, new Uint8Array(await response.arrayBuffer()));
+				if (!await verify(temporary)) throw new Error("SHA-256 mismatch");
+				await rename(temporary, destination);
+				return;
+			} catch (error) {
+				errors.push(`${url} (attempt ${attempt}): ${error.cause?.code || error.message}`);
+				await rm(temporary, { force: true });
+				if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 1_000));
+			}
 	}
+	}
+	throw new Error(`Unable to download verified third-party file:\n${errors.join("\n")}`);
 }
 
 async function copyThirdPartyLicenses() {
