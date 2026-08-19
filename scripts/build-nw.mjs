@@ -138,6 +138,19 @@ async function gitOutput(cwd, args) {
 	return run("git", args, { cwd, capture: true });
 }
 
+async function relaunchWithNpmNode() {
+	const requested = process.env.npm_node_execpath;
+	if (!requested || process.env.SSR_BUILD_REEXEC === "1") return false;
+	const current = path.resolve(process.execPath).toLowerCase();
+	const target = path.resolve(requested).toLowerCase();
+	if (current === target) return false;
+	console.warn(`Re-launching the build with npm's Node.js runtime: ${requested}`);
+	await run(requested, [fileURLToPath(import.meta.url), ...process.argv.slice(2)], {
+		env: { SSR_BUILD_REEXEC: "1" },
+	});
+	return true;
+}
+
 async function isRecorderSource(directory) {
 	return existsSync(path.join(directory, "cli.mjs"))
 		&& existsSync(path.join(directory, "record.mjs"))
@@ -284,6 +297,28 @@ async function copyLucideIcons() {
 	}
 }
 
+async function ensureNativeAbi() {
+	const probe = "require('./node_modules/gl')";
+	try {
+		await run(process.execPath, ["-e", probe], { capture: true });
+		return;
+	} catch {
+		console.warn("Rebuilding gl for the current Node.js ABI...");
+	}
+	const nodeGyp = path.join(projectDirectory, "node_modules", "node-gyp", "bin", "node-gyp.js");
+	if (!existsSync(nodeGyp)) throw new Error(`node-gyp is missing: ${nodeGyp}`);
+	await run(process.execPath, [
+		nodeGyp,
+		"rebuild",
+		"--directory",
+		path.join(projectDirectory, "node_modules", "gl"),
+		"--verbose",
+	], {
+		env: { npm_config_build_from_source: "true" },
+	});
+	await run(process.execPath, ["-e", probe], { capture: true });
+}
+
 async function verifiedDownload(asset, destination) {
 	const verify = async filename => (await fileSha256(filename)).toUpperCase() === asset.sha256;
 	if (existsSync(destination) && await verify(destination)) return;
@@ -362,6 +397,35 @@ async function bundleFonts() {
 		source: font.sourceUrl,
 		license: `licenses/fonts/${font.license}`,
 	})), null, "\t")}\n`);
+}
+
+async function patchRecorderOutputOptions() {
+	const filename = path.join(stageDirectory, "recorder", "record.mjs");
+	let source = await readFile(filename, "utf8");
+	const original = source;
+	const makeFunction = `\tmakeFfmpegOptions(inputOptions, outputOptions, customAfterOutput = false) {
+	\tconst custom = this.ffmpegOutputOptions?.split(' ') ?? [];
+	\tconst output = [...outputOptions];
+	\tconst filename = customAfterOutput ? output.pop() : null;
+	\treturn [
+	\t\t...this.ffmpegOptions?.split(' ') ?? [],
+	\t\t...inputOptions,
+	\t\t...(customAfterOutput ? [] : custom),
+	\t\t...output,
+	\t\t...(customAfterOutput ? custom : []),
+	\t\t...(filename ? [filename] : []),
+	\t].filter(Boolean);
+	}`;
+	const makePattern = /\tmakeFfmpegOptions\(inputOptions, outputOptions\) \{[\s\S]*?\r?\n\t\}\r?\n\r?\n\tasync createVideoGeneratingFfmpeg/;
+	if (!makePattern.test(source)) throw new Error("Unable to locate recorder FFmpeg option helper.");
+	source = source.replace(makePattern, `${makeFunction}\n\n\tasync createVideoGeneratingFfmpeg`);
+	const runPattern = /(\tasync runFfmpeg\(\) \{[\s\S]*?\r?\n\t\t)\]\), (\{stdio: 'inherit'\}\);)/;
+	if (!runPattern.test(source)) throw new Error("Unable to locate recorder final FFmpeg invocation.");
+	source = source.replace(runPattern, "$1], true), $2");
+	if (source === original || !source.includes("customAfterOutput = false") || !source.includes("], true), {stdio: 'inherit'}")) {
+		throw new Error("Unable to patch recorder FFmpeg output option ordering.");
+	}
+	await writeFile(filename, source);
 }
 
 async function copyThirdPartyLicenses() {
@@ -466,6 +530,7 @@ async function writeBuildInformation(recorder) {
 	const information = {
 		builtAt: new Date().toISOString(),
 		nodeVersion: runtimeVersion(),
+		nodeModuleAbi: process.versions.modules,
 		nodeMinimumVersion: MIN_NODE_VERSION,
 		platform: TARGET_PLATFORM,
 		architecture: TARGET_ARCH,
@@ -501,6 +566,7 @@ async function prepareStage() {
 		await cp(source, path.join(stageDirectory, filename));
 	}
 	const recorder = await copyRecorder();
+	await patchRecorderOutputOptions();
 	await Promise.all([copyProductionDependencies(), copyRuntime(), copyFfmpeg(), copyLucideIcons(), copyThirdPartyLicenses(), bundleFonts()]);
 	await generateIcons();
 	await writeBuildInformation(recorder);
@@ -515,10 +581,12 @@ async function signMacApplication() {
 }
 
 async function main() {
+	if (await relaunchWithNpmNode()) return;
 	runtimeVersion();
 	if (!existsSync(path.join(projectDirectory, "node_modules"))) {
 		throw new Error("Run npm ci before building ssr-gui.");
 	}
+	await ensureNativeAbi();
 	const sourcePackage = await prepareStage();
 	const nwPackage = JSON.parse(await readFile(path.join(projectDirectory, "node_modules", "nw", "package.json"), "utf8"));
 	const previousDirectory = process.cwd();

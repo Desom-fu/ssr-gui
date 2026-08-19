@@ -4,6 +4,8 @@ import path from "node:path";
 import {
 	buildRecorderArgs,
 	inferOutputPath,
+	outputFormat,
+	replaceOutputExtension,
 	RECORDER_FIELDS,
 	RECORDER_DEFAULTS,
 	progressFromOutput,
@@ -23,6 +25,14 @@ test("quality presets return independent settings", () => {
 test("output path follows the selected level", () => {
 	assert.equal(inferOutputPath(path.join("D:", "charts", "song.ssc"), path), path.join("D:", "charts", "song.mkv"));
 	assert.equal(inferOutputPath("", path), "");
+});
+
+test("output formats provide extensions and FFmpeg options", () => {
+	assert.equal(outputFormat("mkv").extension, ".mkv");
+	assert.match(outputFormat("mp4").ffmpegOutputOptions, /aac/);
+	assert.match(outputFormat("webm").ffmpegOutputOptions, /libvpx-vp9/);
+	assert.equal(replaceOutputExtension("D:/videos/song.mkv", path.win32, "mp4"), "D:\\videos\\song.mp4");
+	assert.equal(replaceOutputExtension("song.unknown", path.posix, "ts"), "song.ts");
 });
 
 test("desktop recording accepts recorder and legacy output field names", () => {
@@ -58,6 +68,12 @@ test("recorder arguments use explicit values accepted by minimist adapter", () =
 	assert.equal(args.includes("--lyrica5"), false);
 	const outputIndex = args.indexOf("--output");
 	assert.deepEqual(args.slice(outputIndex, outputIndex + 2), ["--output", "/videos/song.mkv"]);
+});
+
+test("FFmpeg option values beginning with a dash stay values", () => {
+	const args = buildRecorderArgs({ cliPath: "cli", levelFile: "online", levelFileOnline: "sample", ffmpegOutputOptions: "-c:a aac -b:a 192k" });
+	const index = args.findIndex(value => value.startsWith("--ffmpeg-output-options"));
+	assert.equal(args[index], "--ffmpeg-output-options=-c:a aac -b:a 192k");
 });
 
 test("the GUI schema covers all 85 recorder defaults exactly once", async () => {

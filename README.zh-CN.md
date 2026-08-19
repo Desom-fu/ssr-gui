@@ -4,7 +4,7 @@
 
 `ssr-gui` 是 [sunniesnow-record](https://github.com/sunniesnow/sunniesnow-record) 的桌面图形界面。发行包已经包含 Node.js、FFmpeg、recorder、Sunniesnow 和全部运行依赖，最终用户不需要安装或配置开发环境。
 
-界面只保留最常用的流程：选择 `.ssc`、选择难度、选择画质与输出位置，然后开始录制。输出使用 recorder 的跨平台默认 Matroska 格式（`.mkv`）。
+界面只保留最常用的流程：选择 `.ssc`、选择难度、选择画质、输出格式与输出位置，然后开始录制。可选格式包括 MKV、MP4、WebM、MOV、AVI 和 MPEG-TS；仍可在高级选项中自定义 FFmpeg 参数。
 
 ## 发行包
 

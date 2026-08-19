@@ -37,6 +37,7 @@ for (const filename of [
 	ffmpeg,
 	cli,
 	path.join(stageDirectory, "app", "index.html"),
+	path.join(stageDirectory, "app", "fonts.conf"),
 	path.join(stageDirectory, "licenses", "Node.js-LICENSE.txt"),
 	path.join(stageDirectory, "licenses", "NW.js-LICENSE.txt"),
 	path.join(stageDirectory, "licenses", "Lucide-LICENSE.txt"),
@@ -68,6 +69,8 @@ if (process.env.SSR_EXPECT_BUNDLED_FONTS === "1") {
 	}
 }
 console.log(await run(node, ["--version"]));
+await run(node, ["-e", "require('./node_modules/gl')"]);
+console.log("headless-gl ABI verified.");
 console.log((await run(ffmpeg, ["-version"])).split(/\r?\n/)[0]);
 if (process.env.SSR_VERIFY_RECORDER === "1") {
 	const help = await run(node, [cli, "--help", "true"], 90_000);

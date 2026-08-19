@@ -29,10 +29,14 @@ test("CI contains native Windows, Linux, and macOS package jobs", async () => {
 	}
 	assert.match(workflow, /SSR_BUNDLE_FONTS/);
 	assert.match(workflow, /\$\{\{ matrix\.artifact \}\}-fonts/);
+	assert.match(workflow, /name: \$\{\{ matrix\.artifact \}\}-fonts/);
+	assert.match(workflow, /files: release\/\*/);
 	assert.match(workflow, /Compress-Archive/);
 	assert.match(workflow, /zip -qry/);
 	assert.match(workflow, /tar -czf/);
 	assert.match(workflow, /softprops\/action-gh-release/);
+	assert.match(workflow, /node node_modules\/node-gyp\/bin\/node-gyp\.js rebuild --directory node_modules\/gl/);
+	assert.doesNotMatch(workflow, /npm rebuild gl/);
 });
 
 test("Node is a minimum requirement, not a pinned runtime", async () => {

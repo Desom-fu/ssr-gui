@@ -4,6 +4,15 @@ export const QUALITY_PRESETS = Object.freeze({
 	high: Object.freeze({ width: 2560, height: 1440, fps: 60 }),
 });
 
+export const OUTPUT_FORMATS = Object.freeze({
+	mkv: Object.freeze({ label: "Matroska (MKV)", extension: ".mkv", accept: ".mkv,video/x-matroska", ffmpegOutputOptions: "" }),
+	mp4: Object.freeze({ label: "MPEG-4 (MP4)", extension: ".mp4", accept: ".mp4,video/mp4", ffmpegOutputOptions: "-c:a aac -b:a 192k" }),
+	webm: Object.freeze({ label: "WebM", extension: ".webm", accept: ".webm,video/webm", ffmpegOutputOptions: "-c:v libvpx-vp9 -crf 31 -b:v 0 -c:a libopus -b:a 128k" }),
+	mov: Object.freeze({ label: "QuickTime (MOV)", extension: ".mov", accept: ".mov,video/quicktime", ffmpegOutputOptions: "-c:a aac -b:a 192k" }),
+	avi: Object.freeze({ label: "AVI", extension: ".avi", accept: ".avi,video/x-msvideo", ffmpegOutputOptions: "-c:a libmp3lame -b:a 192k" }),
+	ts: Object.freeze({ label: "MPEG Transport Stream (TS)", extension: ".ts", accept: ".ts,video/mp2t", ffmpegOutputOptions: "-c:a aac -b:a 192k" }),
+});
+
 const field = (key, type, defaultValue, extra = {}) => Object.freeze({ key, type, defaultValue, ...extra });
 
 // Keep this list in lockstep with sunniesnow-record/record.mjs DEFAULT_SETTINGS.
@@ -49,6 +58,15 @@ export function inferOutputPath(levelPath, pathApi, extension = ".mkv") {
 	const parsed = pathApi.parse(levelPath);
 	return pathApi.join(parsed.dir, `${parsed.name}${extension}`);
 }
+export function outputFormat(format) {
+	const definition = OUTPUT_FORMATS[format] || OUTPUT_FORMATS.mkv;
+	return { ...definition, id: OUTPUT_FORMATS[format] ? format : "mkv" };
+}
+export function replaceOutputExtension(filename, pathApi, format = "mkv") {
+	if (!filename) return "";
+	const parsed = pathApi.parse(filename);
+	return pathApi.join(parsed.dir, `${parsed.name}${outputFormat(format).extension}`);
+}
 export function resolveRecorderOutputPath(settings = {}) {
 	const outputPath = settings.outputPath || settings.output;
 	if (!String(outputPath || "").trim()) throw new TypeError("output path is required.");
@@ -76,7 +94,13 @@ export function buildRecorderArgs(settings) {
 	const args = [settings.cliPath];
 	for (const definition of RECORDER_FIELDS) {
 		const converted = valueFor(definition, values[definition.key]);
-		for (const item of (Array.isArray(converted) ? converted : [converted])) if (item !== "") args.push(`--${slug(definition.key)}`, item);
+		for (const item of (Array.isArray(converted) ? converted : [converted])) {
+			if (item === "") continue;
+			const option = `--${slug(definition.key)}`;
+			// minimist treats a value beginning with '-' as another option unless it is inline.
+			if (typeof item === "string" && item.startsWith("-") && ["ffmpegOptions", "ffmpegOutputOptions"].includes(definition.key)) args.push(`${option}=${item}`);
+			else args.push(option, item);
+		}
 	}
 	return args;
 }

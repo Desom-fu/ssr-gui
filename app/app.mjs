@@ -1,10 +1,10 @@
-import { FIELD_GROUPS, FIELD_LABELS, RECORDER_DEFAULTS, RECORDER_FIELDS, fieldGroup, progressFromOutput, settingsForPreset } from "./core.mjs";
+import { FIELD_GROUPS, FIELD_LABELS, RECORDER_DEFAULTS, RECORDER_FIELDS, fieldGroup, outputFormat, progressFromOutput, replaceOutputExtension, settingsForPreset } from "./core.mjs";
 import { DesktopPlatform } from "./platform.mjs";
 
 const platform = new DesktopPlatform();
 const elements = Object.fromEntries([
 	"record-form", "runtime-badge", "choose-level", "level-name", "level-path", "chart-select",
-	"choose-output", "output-path", "video-width", "video-height", "video-fps", "speed", "note-size", "wait-music", "system-fonts",
+	"choose-output", "output-path", "output-format", "video-width", "video-height", "video-fps", "speed", "note-size", "wait-music", "system-fonts",
 	"results-duration", "advanced-groups", "start-record", "cancel-record", "state-mark", "state-eyebrow",
 	"state-title", "state-detail", "progress-bar", "reveal-output", "log-output", "clear-log",
 ].map(id => [id, document.getElementById(id)]));
@@ -12,6 +12,7 @@ const elements = Object.fromEntries([
 const state = {
 	levelPath: "",
 	outputPath: "",
+	outputManuallyChosen: false,
 	running: false,
 	runtimeReady: false,
 	progress: 0,
@@ -113,6 +114,8 @@ function collectRecorderSettings() {
 	values.resultsDuration = elements["results-duration"].value;
 	values.output = state.outputPath || customValues.output;
 	values.outputPath = values.output;
+	const format = outputFormat(elements["output-format"].value);
+	if (!String(customValues.ffmpegOutputOptions || "").trim()) values.ffmpegOutputOptions = format.ffmpegOutputOptions;
 	values.waitForMusic = elements["wait-music"].checked;
 	values.avoidDownloadingFonts = elements["system-fonts"].checked;
 	return values;
@@ -182,7 +185,8 @@ async function useLevel(filename) {
 		throw new Error("请选择 .ssc 谱面文件。");
 	}
 	state.levelPath = platform.path.resolve(filename);
-	state.outputPath = platform.path.resolve(platform.path.dirname(filename), `${platform.path.parse(filename).name}.mkv`);
+	state.outputManuallyChosen = false;
+	state.outputPath = replaceOutputExtension(state.levelPath, platform.path, elements["output-format"].value);
 	elements["level-name"].textContent = basename(filename);
 	elements["level-path"].textContent = state.levelPath;
 	elements["output-path"].textContent = state.outputPath;
@@ -209,12 +213,20 @@ async function chooseLevel() {
 }
 
 async function chooseOutput() {
-	const suggested = basename(state.outputPath) || "output.mkv";
-	const filename = await platform.chooseFile({ accept: ".mkv,video/x-matroska", saveAs: suggested });
+	const format = outputFormat(elements["output-format"].value);
+	const suggested = basename(state.outputPath) || `output${format.extension}`;
+	const filename = await platform.chooseFile({ accept: format.accept, saveAs: suggested });
 	if (!filename) return;
-	state.outputPath = filename.toLowerCase().endsWith(".mkv") ? filename : `${filename}.mkv`;
+	state.outputManuallyChosen = true;
+	state.outputPath = replaceOutputExtension(filename, platform.path, format.id);
 	elements["output-path"].textContent = state.outputPath;
 	updateActions();
+}
+
+function changeOutputFormat() {
+	if (!state.outputPath) return;
+	state.outputPath = replaceOutputExtension(state.outputPath, platform.path, elements["output-format"].value);
+	elements["output-path"].textContent = state.outputPath;
 }
 
 function applyQualityPreset(name) {
@@ -230,6 +242,7 @@ document.querySelectorAll('input[name="quality"]').forEach(input => {
 		if (input.checked) applyQualityPreset(input.value);
 	});
 });
+elements["output-format"].addEventListener("change", changeOutputFormat);
 for (const id of ["video-width", "video-height", "video-fps"]) {
 	elements[id].addEventListener("input", () => {
 		const custom = document.querySelector('input[name="quality"][value="custom"]');

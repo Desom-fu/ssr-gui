@@ -122,11 +122,16 @@ export class DesktopPlatform {
 			ffmpegPath: settings.ffmpeg || runtime.ffmpeg,
 			tempDir: settings.tempDir || runtime.temp,
 		});
+		const environment = { ...process.env, NO_COLOR: "1" };
+		if (process.platform === "win32") {
+			environment.PANGOCAIRO_BACKEND = "fontconfig";
+			environment.FONTCONFIG_FILE = path.join(packageDirectory, "app", "fonts.conf");
+		}
 		this.cancelled = false;
 		const child = spawn(runtime.node, args, {
 			cwd: path.dirname(runtime.cli),
 			detached: process.platform !== "win32",
-			env: { ...process.env, NO_COLOR: "1" },
+			env: environment,
 			stdio: ["ignore", "pipe", "pipe"],
 			windowsHide: true,
 		});

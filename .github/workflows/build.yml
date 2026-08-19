@@ -86,7 +86,6 @@ jobs:
       SSR_TARGET_PLATFORM: ${{ matrix.targetPlatform }}
       SSR_TARGET_ARCH: ${{ matrix.targetArch }}
       SSR_RUNTIME_ARCH: ${{ matrix.runtimeArch }}
-      npm_config_arch: ${{ matrix.nativeArch }}
       FFMPEG_BINARY_RELEASE: ${{ matrix.ffmpegRelease }}
       SSR_BUNDLE_FONTS: '0'
     steps:
@@ -124,13 +123,14 @@ jobs:
 
       - name: Install JavaScript and native dependencies
         env:
-          npm_config_python: ${{ steps.setup-python.outputs.python-path }}
+          NODE_GYP_FORCE_PYTHON: ${{ steps.setup-python.outputs.python-path }}
         run: npm ci --no-audit --no-fund
 
       - name: Rebuild headless WebGL for the selected Node ABI
         env:
+          NODE_GYP_FORCE_PYTHON: ${{ steps.setup-python.outputs.python-path }}
           npm_config_build_from_source: 'true'
-        run: npm rebuild gl --build-from-source --verbose
+        run: node node_modules/node-gyp/bin/node-gyp.js rebuild --directory node_modules/gl --verbose
 
       - run: npm test
       - name: Build standard edition
