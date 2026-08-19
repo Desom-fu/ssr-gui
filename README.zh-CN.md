@@ -14,7 +14,9 @@ GitHub Actions 会原生构建以下版本：
 - Linux x64 与 ARM64：解压对应的 tar.gz 后运行目录中的 `ssr-gui`。
 - macOS x64 与 Apple Silicon：解压 ZIP 后打开 `ssr-gui.app`。
 
-每次 push 触发的 CI 都会保存构建产物；Windows/macOS 使用 ZIP，Linux 使用 tar.gz。推送以 `v` 开头的 Git tag 时，还会创建包含全部平台压缩包的 GitHub Release。把 commit message 写成 `v0.0.1` 并不等于创建 tag，也不会发布。需要明确创建并推送 tag：
+每个平台都提供两个版本：标准版体积较小，在谱面需要字体时沿用 Sunniesnow 的按需下载行为；文件名以 `-fonts` 结尾的字体版内置 Sunniesnow 使用的全部 5 个字体及其许可证，录制时不需要再下载这些字体。
+
+每次 push 触发的 CI 都会保存两种构建产物；Windows/macOS 使用 ZIP，Linux 使用 tar.gz。推送以 `v` 开头的 Git tag 时，还会创建包含全部平台、两种版本压缩包的 GitHub Release。把 commit message 写成 `v0.0.1` 并不等于创建 tag，也不会发布。需要明确创建并推送 tag：
 
 ```shell
 git tag v0.0.1
@@ -25,13 +27,19 @@ macOS 包会进行 ad-hoc 签名，但由于项目没有 Apple Developer 证书�
 
 ## 本地构建
 
-在目标操作系统上使用 Node.js 22：
+在目标操作系统上使用 Node.js 22.23.2 或更高版本。构建会把当前执行构建的 Node 一同打包，确保原生依赖与发行包内运行时使用相同的 Node ABI：
 
 ```shell
 npm ci
 npm test
 npm run build
 npm run verify:package
+```
+
+以上命令构建当前操作系统对应的标准版。构建内置字体版使用：
+
+```shell
+npm run build:fonts
 ```
 
 如果相邻目录的 `../sunniesnow-record` 与固定的 recorder commit 一致，构建会读取它但不会修改它；否则会把该固定版本和对应的 game 子模块检出到 `node_modules/.cache/ssr-gui`。也可以通过 `SSR_RECORD_SOURCE` 指定其他只读源码目录。

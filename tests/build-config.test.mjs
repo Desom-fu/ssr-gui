@@ -27,8 +27,18 @@ test("CI contains native Windows, Linux, and macOS package jobs", async () => {
 	for (const artifact of ["ssr-gui-windows-x86", "ssr-gui-windows-x64", "ssr-gui-windows-arm64", "ssr-gui-linux-x64", "ssr-gui-linux-arm64", "ssr-gui-macos-x64", "ssr-gui-macos-arm64"]) {
 		assert.match(workflow, new RegExp(artifact));
 	}
+	assert.match(workflow, /SSR_BUNDLE_FONTS/);
+	assert.match(workflow, /\$\{\{ matrix\.artifact \}\}-fonts/);
 	assert.match(workflow, /Compress-Archive/);
 	assert.match(workflow, /zip -qry/);
 	assert.match(workflow, /tar -czf/);
 	assert.match(workflow, /softprops\/action-gh-release/);
+});
+
+test("Node is a minimum requirement, not a pinned runtime", async () => {
+	const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+	assert.equal(packageJson.engines.node, ">=22.23.2");
+	assert.equal(Object.hasOwn(packageJson.devDependencies, "node"), false);
+	const workflow = await readFile(new URL("../.github/workflows/build.yml", import.meta.url), "utf8");
+	assert.match(workflow, /node-version: ['"]lts\/\*['"]/);
 });

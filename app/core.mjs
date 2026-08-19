@@ -54,7 +54,8 @@ export function resolveRecorderOutputPath(settings = {}) {
 	if (!String(outputPath || "").trim()) throw new TypeError("output path is required.");
 	return String(outputPath);
 }
-function slug(key) { return key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`); }
+// Match Sunniesnow.Utils.camelToSlug exactly, including numeric suffixes such as lyrica5.
+function slug(key) { return key.replace(/[A-Z\d]/g, letter => `-${letter.toLowerCase()}`); }
 function valueFor(definition, value) {
 	if (definition.type === "boolean") return String(Boolean(value));
 	if (definition.type === "array" || definition.type === "file-array") return Array.isArray(value) ? value.filter(Boolean).map(String) : [];

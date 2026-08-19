@@ -14,7 +14,9 @@ GitHub Actions builds native packages for:
 - Linux x64 and ARM64: extract the matching tar.gz and run `ssr-gui` from the extracted folder.
 - macOS x64 and Apple Silicon: extract the ZIP and open `ssr-gui.app`.
 
-Build artifacts are attached to every CI run triggered by a push. Windows and macOS artifacts are ZIP files; Linux is tar.gz. Git tags beginning with `v` also create a GitHub Release containing all platform archives. A commit message such as `v0.0.1` is not a tag and does not create a release. Create and push a release tag explicitly:
+Each platform has two editions. The standard archive is smaller and lets Sunniesnow download a font only when a chart needs it. The archive ending in `-fonts` includes all five Sunniesnow fonts and their licenses, and never needs to download those fonts while recording.
+
+Build artifacts are attached to every CI run triggered by a push. Windows and macOS artifacts are ZIP files; Linux is tar.gz. Git tags beginning with `v` also create a GitHub Release containing both editions for all platforms. A commit message such as `v0.0.1` is not a tag and does not create a release. Create and push a release tag explicitly:
 
 ```shell
 git tag v0.0.1
@@ -25,13 +27,19 @@ macOS packages are ad-hoc signed but not notarized because the project has no Ap
 
 ## Local build
 
-Use Node.js 22 on the target operating system:
+Use Node.js 22.23.2 or newer on the target operating system. The build packages the Node executable that runs the build, so native dependencies and the bundled runtime always use the same Node ABI:
 
 ```shell
 npm ci
 npm test
 npm run build
 npm run verify:package
+```
+
+The commands above build the smaller standard edition for the current operating system. To build the bundled-font edition instead:
+
+```shell
+npm run build:fonts
 ```
 
 The build uses a neighboring `../sunniesnow-record` checkout when it matches the pinned recorder commit. Otherwise it checks out that exact upstream revision and its game submodule into `node_modules/.cache/ssr-gui`. Set `SSR_RECORD_SOURCE` to use another recorder checkout without modifying it.

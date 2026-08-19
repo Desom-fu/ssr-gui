@@ -53,6 +53,9 @@ test("recorder arguments use explicit values accepted by minimist adapter", () =
 	assert.deepEqual(args.slice(args.indexOf("--avoid-downloading-fonts"), args.indexOf("--avoid-downloading-fonts") + 2), ["--avoid-downloading-fonts", "false"]);
 	const chartIndex = args.indexOf("--chart-select");
 	assert.deepEqual(args.slice(chartIndex, chartIndex + 2), ["--chart-select", "master.json"]);
+	const lyricaIndex = args.indexOf("--lyrica-5");
+	assert.deepEqual(args.slice(lyricaIndex, lyricaIndex + 2), ["--lyrica-5", "true"]);
+	assert.equal(args.includes("--lyrica5"), false);
 	const outputIndex = args.indexOf("--output");
 	assert.deepEqual(args.slice(outputIndex, outputIndex + 2), ["--output", "/videos/song.mkv"]);
 });

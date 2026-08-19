@@ -18,19 +18,74 @@ const TARGET_PLATFORM = process.env.SSR_TARGET_PLATFORM || process.platform;
 const TARGET_ARCH = ({ x86: "ia32", amd64: "x64", aarch64: "arm64" })[process.env.SSR_TARGET_ARCH] || process.env.SSR_TARGET_ARCH || process.arch;
 const RUNTIME_ARCH = ({ x86: "ia32", amd64: "x64", aarch64: "arm64" })[process.env.SSR_RUNTIME_ARCH] || process.env.SSR_RUNTIME_ARCH || TARGET_ARCH;
 const NW_PLATFORM = ({ win32: "win", darwin: "osx", linux: "linux" })[TARGET_PLATFORM] || TARGET_PLATFORM;
-const WINDOWS_NODE_ARCH = ({ ia32: "x86", x64: "x64", arm64: "arm64" })[RUNTIME_ARCH] || RUNTIME_ARCH;
+const BUNDLE_FONTS = process.env.SSR_BUNDLE_FONTS === "1" || process.argv.includes("--fonts");
 if (!["win32", "darwin", "linux"].includes(TARGET_PLATFORM)) throw new Error(`Unsupported target platform: ${TARGET_PLATFORM}`);
 if (!["ia32", "x64", "arm64"].includes(TARGET_ARCH)) throw new Error(`Unsupported target architecture: ${TARGET_ARCH}`);
 if (!["ia32", "x64", "arm64"].includes(RUNTIME_ARCH)) throw new Error(`Unsupported runtime architecture: ${RUNTIME_ARCH}`);
 const RECORDER_COMMIT = "b1a67fa6bbc7e8541583628d3d532300824d0c65";
-const NODE_LICENSE = Object.freeze({
-	version: "22.23.2",
-	sha256: "C738AE413CF561F174E34F6961F8CA458AAE2369A73640DDA6234C629B98BCC4",
-	urls: Object.freeze([
-		"https://raw.githubusercontent.com/nodejs/node/v22.23.2/LICENSE",
-		"https://github.com/nodejs/node/raw/refs/tags/v22.23.2/LICENSE",
-	]),
-});
+const MIN_NODE_VERSION = "22.23.2";
+const FONT_ASSETS = Object.freeze([
+	{
+		name: "NotoSansMath-Regular.ttf",
+		family: "Noto Sans Math",
+		url: "https://fastly.jsdelivr.net/gh/notofonts/math@53eb8eb200ed8fc73fa13d97d26a2c9c56428c17/fonts/NotoSansMath/full/ttf/NotoSansMath-Regular.ttf",
+		rawUrl: "https://raw.githubusercontent.com/notofonts/math/53eb8eb200ed8fc73fa13d97d26a2c9c56428c17/fonts/NotoSansMath/full/ttf/NotoSansMath-Regular.ttf",
+		sha256: "92CEA8BC749CE778118FC6D3B52DCCEAE3F59B6CFE00D241849BE09FECC006C2",
+		license: "NotoSansMath-OFL.txt",
+		licenseUrl: "https://raw.githubusercontent.com/notofonts/math/fbb2a1334f1d693c3c863b3b694ffadf75094b36/OFL.txt",
+		licenseSha256: "403A95275B469061B7D4371C328E0ADA3BC7D63328ABE2E88AAD5CD243B2FE21",
+		sourceUrl: "https://github.com/notofonts/math",
+		localUrl: "/game/fonts/NotoSansMath-Regular.ttf",
+	},
+	{
+		name: "NotoSansCJKtc-Regular.otf",
+		family: "Noto Sans CJK TC",
+		url: "https://fastly.jsdelivr.net/gh/notofonts/noto-cjk@f8d157532fbfaeda587e826d4cd5b21a49186f7c/Sans/OTF/TraditionalChinese/NotoSansCJKtc-Regular.otf",
+		rawUrl: "https://raw.githubusercontent.com/notofonts/noto-cjk/f8d157532fbfaeda587e826d4cd5b21a49186f7c/Sans/OTF/TraditionalChinese/NotoSansCJKtc-Regular.otf",
+		sha256: "DCE08BD4FD91AA8AA76ED8FEA4B694C2DFB8550F67871E326843212DDBEB88B4",
+		license: "NotoSansCJK-LICENSE.txt",
+		licenseUrl: "https://raw.githubusercontent.com/notofonts/noto-cjk/f8d157532fbfaeda587e826d4cd5b21a49186f7c/Sans/LICENSE",
+		licenseSha256: "6A73F9541C2DE74158C0E7CF6B0A58EF774F5A780BF191F2D7EC9CC53EFE2BF2",
+		sourceUrl: "https://github.com/notofonts/noto-cjk",
+		localUrl: "/game/fonts/NotoSansCJKtc-Regular.otf",
+	},
+	{
+		name: "wt071.ttf",
+		family: "HanWangShinSuMedium",
+		url: "https://fastly.jsdelivr.net/gh/kaio/wangfonts@268666d80f8029bb8c61b9668352c7a375873301/TrueType/wt071.ttf",
+		rawUrl: "https://raw.githubusercontent.com/kaio/wangfonts/268666d80f8029bb8c61b9668352c7a375873301/TrueType/wt071.ttf",
+		sha256: "50A8C5F2C8CFE6D218EC2041DEB1902ADD56882348A86C518EAEAB685678C0FE",
+		license: "HanWang-GPL-2.0.txt",
+		licenseUrl: "https://raw.githubusercontent.com/kaio/wangfonts/268666d80f8029bb8c61b9668352c7a375873301/license.txt",
+		licenseSha256: "DB511383A96A22DB478AE02390B8AB8EA8C7DA44020C8A4FB59B1B2D7BBA538E",
+		sourceUrl: "https://github.com/kaio/wangfonts",
+		localUrl: "/game/fonts/wt071.ttf",
+	},
+	{
+		name: "YujiBoku-Regular.ttf",
+		family: "YujiBoku",
+		url: "https://fastly.jsdelivr.net/gh/Kinutafontfactory/Yuji@efec977b14b57c19eb85d468edcfbbad13139e67/fonts/ttf/YujiBoku-Regular.ttf",
+		rawUrl: "https://raw.githubusercontent.com/Kinutafontfactory/Yuji/efec977b14b57c19eb85d468edcfbbad13139e67/fonts/ttf/YujiBoku-Regular.ttf",
+		sha256: "94FDA16384F3BDAC24376A000C57E99ABFA314961BD89EF27BADFB7410322003",
+		license: "YujiBoku-OFL.txt",
+		licenseUrl: "https://raw.githubusercontent.com/Kinutafontfactory/Yuji/efec977b14b57c19eb85d468edcfbbad13139e67/OFL.txt",
+		licenseSha256: "EF7C85C72AE94381C8BC4832AE4E6FBABDEAFA2BB8A31313CD75DCE95A690256",
+		sourceUrl: "https://github.com/Kinutafontfactory/Yuji",
+		localUrl: "/game/fonts/YujiBoku-Regular.ttf",
+	},
+	{
+		name: "LXGWWenKai-Regular.ttf",
+		family: "LXGW WenKai",
+		url: "https://fastly.jsdelivr.net/gh/lxgw/LxgwWenKai@50f4b182415a8c33d9a456df220b66a284e2509b/fonts/TTF/LXGWWenKai-Regular.ttf",
+		rawUrl: "https://raw.githubusercontent.com/lxgw/LxgwWenKai/50f4b182415a8c33d9a456df220b66a284e2509b/fonts/TTF/LXGWWenKai-Regular.ttf",
+		sha256: "39AD71264B588165B469E35E6AFB162A378DACD1F95348160240BA9038AC3009",
+		license: "LXGWWenKai-OFL.txt",
+		licenseUrl: "https://raw.githubusercontent.com/lxgw/LxgwWenKai/50f4b182415a8c33d9a456df220b66a284e2509b/OFL.txt",
+		licenseSha256: "1A25E35DA1031C6C3436FDE545BB9CB5ACA954E9873AFE510C834B8B79BD21A0",
+		sourceUrl: "https://github.com/lxgw/LxgwWenKai",
+		localUrl: "/game/fonts/LXGWWenKai-Regular.ttf",
+	},
+]);
 
 function assertInsideProject(target) {
 	const resolved = path.resolve(target);
@@ -38,6 +93,24 @@ function assertInsideProject(target) {
 		throw new Error(`Refusing to modify a path outside the project: ${resolved}`);
 	}
 	return resolved;
+}
+
+function compareVersions(left, right) {
+	const parse = value => String(value).replace(/^v/, "").split(".").map(part => Number.parseInt(part, 10) || 0);
+	const a = parse(left);
+	const b = parse(right);
+	for (let index = 0; index < 3; index += 1) {
+		if ((a[index] || 0) !== (b[index] || 0)) return (a[index] || 0) - (b[index] || 0);
+	}
+	return 0;
+}
+
+function runtimeVersion() {
+	const version = process.versions.node;
+	if (compareVersions(version, MIN_NODE_VERSION) < 0) {
+		throw new Error(`Node.js ${MIN_NODE_VERSION} or newer is required; found ${version}.`);
+	}
+	return version;
 }
 
 function run(command, args, options = {}) {
@@ -175,16 +248,11 @@ async function copyProductionDependencies() {
 
 async function copyRuntime() {
 	const filename = TARGET_PLATFORM === "win32" ? "node.exe" : "node";
-	const runtimePackage = TARGET_PLATFORM === "win32"
-		? `node-win-${WINDOWS_NODE_ARCH}`
-		: `node-${TARGET_PLATFORM === "darwin" ? "darwin" : "linux"}-${RUNTIME_ARCH}`;
-	const candidates = [
-		path.join(projectDirectory, "node_modules", "node", "node_modules", runtimePackage, "bin", filename),
-		path.join(projectDirectory, "node_modules", runtimePackage, "bin", filename),
-		path.join(projectDirectory, "node_modules", "node", "bin", filename),
-	];
-	const source = candidates.find(filename => existsSync(filename));
-	if (!source) throw new Error(`Bundled Node executable is missing for ${TARGET_PLATFORM}/${TARGET_ARCH}. Checked: ${candidates.join(", ")}`);
+	if (TARGET_PLATFORM !== process.platform || RUNTIME_ARCH !== process.arch) {
+		throw new Error(`Cross-target runtime packaging is unsupported: build on ${TARGET_PLATFORM}/${RUNTIME_ARCH} to package the current Node runtime.`);
+	}
+	const source = process.execPath;
+	if (!existsSync(source)) throw new Error(`The current Node executable is missing: ${source}`);
 	const destination = path.join(stageDirectory, "runtime", filename);
 	await mkdir(path.dirname(destination), { recursive: true });
 	await cp(source, destination);
@@ -219,6 +287,7 @@ async function copyLucideIcons() {
 async function verifiedDownload(asset, destination) {
 	const verify = async filename => (await fileSha256(filename)).toUpperCase() === asset.sha256;
 	if (existsSync(destination) && await verify(destination)) return;
+	await rm(destination, { force: true });
 	await mkdir(path.dirname(destination), { recursive: true });
 	const temporary = `${destination}.download`;
 	const urls = asset.urls || [asset.url];
@@ -245,10 +314,85 @@ async function verifiedDownload(asset, destination) {
 	throw new Error(`Unable to download verified third-party file:\n${errors.join("\n")}`);
 }
 
+function githubRawUrls(rawUrl) {
+	const parsed = new URL(rawUrl);
+	const [owner, repository, commit, ...filename] = parsed.pathname.split("/").filter(Boolean);
+	return [rawUrl, `https://github.com/${owner}/${repository}/raw/${commit}/${filename.join("/")}`];
+}
+
+async function bundleFonts() {
+	if (!BUNDLE_FONTS) return;
+	const fontDirectory = path.join(stageDirectory, "recorder", "game", "fonts");
+	const licenseDirectory = path.join(stageDirectory, "licenses", "fonts");
+	for (const font of FONT_ASSETS) {
+		const cachedFont = path.join(cacheDirectory, "fonts", font.name);
+		const cachedLicense = path.join(cacheDirectory, "licenses", "fonts", font.license);
+		await verifiedDownload({ sha256: font.sha256, urls: [font.url, ...githubRawUrls(font.rawUrl)] }, cachedFont);
+		await verifiedDownload({ sha256: font.licenseSha256, urls: githubRawUrls(font.licenseUrl) }, cachedLicense);
+	}
+	await Promise.all(FONT_ASSETS.flatMap(font => [
+		mkdir(fontDirectory, { recursive: true }).then(() => cp(path.join(cacheDirectory, "fonts", font.name), path.join(fontDirectory, font.name))),
+		mkdir(licenseDirectory, { recursive: true }).then(() => cp(path.join(cacheDirectory, "licenses", "fonts", font.license), path.join(licenseDirectory, font.license))),
+	]));
+
+	const gameDirectory = path.join(stageDirectory, "recorder", "game");
+	const javascriptFiles = (await readdir(path.join(gameDirectory, "js"), { recursive: true }))
+		.filter(filename => filename.endsWith(".js"));
+	const replacements = new Map(FONT_ASSETS.map(font => [font.family, font.localUrl]));
+	const replaced = new Set();
+	for (const relative of javascriptFiles) {
+		const filename = path.join(gameDirectory, "js", relative);
+		let source = await readFile(filename, "utf8");
+		const original = source;
+		for (const [family, localUrl] of replacements) {
+			const pattern = new RegExp(`(['\"])(https?:\\/\\/[^'\"]+)\\1(\\s*,\\s*['\"]${family.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}['\"])`, "g");
+			source = source.replace(pattern, (match, quote, remoteUrl, suffix) => {
+				replaced.add(family);
+				return `${quote}${localUrl}${quote}${suffix}`;
+			});
+		}
+		if (source !== original) await writeFile(filename, source);
+	}
+	const missing = FONT_ASSETS.filter(font => !replaced.has(font.family));
+	if (missing.length) throw new Error(`Unable to patch bundled font URLs for: ${missing.map(font => font.family).join(", ")}`);
+	await writeFile(path.join(fontDirectory, "SOURCES.json"), `${JSON.stringify(FONT_ASSETS.map(font => ({
+		file: font.name,
+		family: font.family,
+		sha256: font.sha256,
+		source: font.sourceUrl,
+		license: `licenses/fonts/${font.license}`,
+	})), null, "\t")}\n`);
+}
+
 async function copyThirdPartyLicenses() {
 	const licenses = path.join(stageDirectory, "licenses");
-	const cachedNodeLicense = path.join(cacheDirectory, "licenses", `Node.js-${NODE_LICENSE.version}-LICENSE.txt`);
-	await verifiedDownload(NODE_LICENSE, cachedNodeLicense);
+	const nodeVersion = runtimeVersion();
+	const nodeLicense = {
+		version: nodeVersion,
+		urls: [
+			`https://raw.githubusercontent.com/nodejs/node/v${nodeVersion}/LICENSE`,
+			`https://github.com/nodejs/node/raw/refs/tags/v${nodeVersion}/LICENSE`,
+		],
+	};
+	const cachedNodeLicense = path.join(cacheDirectory, "licenses", `Node.js-${nodeVersion}-LICENSE.txt`);
+	if (!existsSync(cachedNodeLicense)) {
+		const temporary = `${cachedNodeLicense}.download`;
+		await mkdir(path.dirname(cachedNodeLicense), { recursive: true });
+		const errors = [];
+		for (const url of nodeLicense.urls) {
+			try {
+				const response = await fetch(url, { headers: { "User-Agent": "ssr-gui-builder/0.1" }, signal: AbortSignal.timeout(60_000) });
+				if (!response.ok) throw new Error(`HTTP ${response.status}`);
+				await writeFile(temporary, new Uint8Array(await response.arrayBuffer()));
+				await rename(temporary, cachedNodeLicense);
+				break;
+			} catch (error) {
+				errors.push(`${url}: ${error.cause?.code || error.message}`);
+				await rm(temporary, { force: true });
+			}
+		}
+		if (!existsSync(cachedNodeLicense)) throw new Error(`Unable to download Node.js ${nodeVersion} license:\n${errors.join("\n")}`);
+	}
 	await mkdir(licenses, { recursive: true });
 	await Promise.all([
 		cp(cachedNodeLicense, path.join(licenses, "Node.js-LICENSE.txt")),
@@ -321,10 +465,13 @@ async function fileSha256(filename) {
 async function writeBuildInformation(recorder) {
 	const information = {
 		builtAt: new Date().toISOString(),
+		nodeVersion: runtimeVersion(),
+		nodeMinimumVersion: MIN_NODE_VERSION,
 		platform: TARGET_PLATFORM,
 		architecture: TARGET_ARCH,
 		runtimeArchitecture: RUNTIME_ARCH,
 		recorderCommit: recorder.commit || null,
+		bundledFonts: BUNDLE_FONTS,
 	};
 	try { information.commit = await gitOutput(projectDirectory, ["rev-parse", "HEAD"]); } catch { /* source archive */ }
 	information.recorderSourceHash = await fileSha256(path.join(stageDirectory, "recorder", "record.mjs"));
@@ -354,7 +501,7 @@ async function prepareStage() {
 		await cp(source, path.join(stageDirectory, filename));
 	}
 	const recorder = await copyRecorder();
-	await Promise.all([copyProductionDependencies(), copyRuntime(), copyFfmpeg(), copyLucideIcons(), copyThirdPartyLicenses()]);
+	await Promise.all([copyProductionDependencies(), copyRuntime(), copyFfmpeg(), copyLucideIcons(), copyThirdPartyLicenses(), bundleFonts()]);
 	await generateIcons();
 	await writeBuildInformation(recorder);
 	return sourcePackage;
@@ -368,6 +515,7 @@ async function signMacApplication() {
 }
 
 async function main() {
+	runtimeVersion();
 	if (!existsSync(path.join(projectDirectory, "node_modules"))) {
 		throw new Error("Run npm ci before building ssr-gui.");
 	}
