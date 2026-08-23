@@ -4,7 +4,7 @@
 
 `ssr-gui` is a desktop GUI for [sunniesnow-record](https://github.com/sunniesnow/sunniesnow-record). A release package contains Node.js, FFmpeg, the recorder, Sunniesnow, and all runtime dependencies. End users do not need to install or configure a development environment.
 
-The interface intentionally exposes only the common workflow: choose an `.ssc`, select its difficulty, pick a quality preset, output format, and output path, then record. Available formats are MKV, MP4, WebM, MOV, AVI, and MPEG-TS; advanced FFmpeg options remain customizable.
+The main workflow exposes chart and difficulty selection, quality, nickname and avatar, output filename, format, and location. Available formats are MKV, MP4, WebM, MOV, AVI, and MPEG-TS. Every remaining `sunniesnow-record` option is available once in the advanced settings, including the independent Tap, Drag, Flick, Hold, Drag-Flick, head-only Hold, and background-note sizes.
 
 ## Release packages
 

@@ -22,7 +22,7 @@ const BUNDLE_FONTS = process.env.SSR_BUNDLE_FONTS === "1" || process.argv.includ
 if (!["win32", "darwin", "linux"].includes(TARGET_PLATFORM)) throw new Error(`Unsupported target platform: ${TARGET_PLATFORM}`);
 if (!["ia32", "x64", "arm64"].includes(TARGET_ARCH)) throw new Error(`Unsupported target architecture: ${TARGET_ARCH}`);
 if (!["ia32", "x64", "arm64"].includes(RUNTIME_ARCH)) throw new Error(`Unsupported runtime architecture: ${RUNTIME_ARCH}`);
-const RECORDER_COMMIT = "b1a67fa6bbc7e8541583628d3d532300824d0c65";
+const RECORDER_COMMIT = "75c5788010bcf7ae5c19d09fd44516885391bc47";
 const MIN_NODE_VERSION = "22.23.2";
 const FONT_ASSETS = Object.freeze([
 	{

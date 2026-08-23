@@ -57,25 +57,41 @@
 					<label class="field"><span>高度</span><input id="video-height" type="number" value="1080" min="180" max="4320" step="1"></label>
 					<label class="field"><span>FPS</span><input id="video-fps" type="number" value="60" min="1" max="240" step="1"></label>
 				</div>
-				<div class="field-row">
-					<label class="field"><span>音符速度</span><input id="speed" type="number" value="2" min="0" max="20" step="0.1"></label>
-					<label class="field"><span>音符大小</span><input id="note-size" type="number" value="1" min="0.1" max="5" step="0.1"></label>
+				<label class="field"><span>音符速度</span><input id="speed" type="number" value="2" min="0" max="20" step="0.1"></label>
+			</section>
+
+			<section class="form-section">
+				<div class="section-heading">
+					<h2>用户</h2>
+					<span class="step-number">03</span>
 				</div>
+				<label class="field"><span>昵称</span><input id="nickname" type="text" value="New Poet"></label>
+				<label class="field"><span>头像来源</span><select id="avatar-source">
+					<option value="online">在线头像</option>
+					<option value="upload">本地图片</option>
+					<option value="gravatar">Gravatar</option>
+				</select></label>
+				<label class="field avatar-detail" id="avatar-online-field"><span>在线头像</span><input id="avatar-online" type="text" value="default.svg"></label>
+				<label class="field avatar-detail" id="avatar-upload-field" hidden><span>头像文件</span><input id="avatar-upload" type="file" accept="image/*"></label>
+				<label class="field avatar-detail" id="avatar-gravatar-field" hidden><span>Gravatar 邮箱</span><input id="avatar-gravatar" type="email" value=""></label>
 			</section>
 
 			<section class="form-section">
 				<div class="section-heading">
 					<h2>输出</h2>
-					<span class="step-number">03</span>
+					<span class="step-number">04</span>
 				</div>
-				<label class="field output-format-field"><span>输出格式</span><select id="output-format">
-					<option value="mkv">Matroska (MKV)</option>
-					<option value="mp4">MPEG-4 (MP4)</option>
-					<option value="webm">WebM</option>
-					<option value="mov">QuickTime (MOV)</option>
-					<option value="avi">AVI</option>
-					<option value="ts">MPEG Transport Stream (TS)</option>
-				</select></label>
+				<div class="field-row">
+					<label class="field output-format-field"><span>输出格式</span><select id="output-format">
+						<option value="mkv">Matroska (MKV)</option>
+						<option value="mp4">MPEG-4 (MP4)</option>
+						<option value="webm">WebM</option>
+						<option value="mov">QuickTime (MOV)</option>
+						<option value="avi">AVI</option>
+						<option value="ts">MPEG Transport Stream (TS)</option>
+					</select></label>
+					<label class="field"><span>输出文件名</span><input id="output-filename" type="text" value="output.mkv"></label>
+				</div>
 				<button class="path-picker" id="choose-output" type="button" disabled>
 					<img src="icons/folder-output.svg" alt="">
 					<span id="output-path">选择谱面后自动生成</span>
@@ -89,7 +105,7 @@
 
 			<details class="advanced-settings">
 				<summary>全部 recorder 参数</summary>
-				<p class="advanced-note">这里包含命令行可自定义的完整选项。常用选项已在上方提供快捷控件。</p>
+				<p class="advanced-note">这里包含尚未在上方显示的全部命令行选项。</p>
 				<div id="advanced-groups"></div>
 			</details>
 

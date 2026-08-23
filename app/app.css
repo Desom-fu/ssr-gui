@@ -330,6 +330,10 @@ button:disabled {
 	gap: 10px;
 }
 
+.avatar-detail[hidden] {
+	display: none;
+}
+
 .resolution-row {
 	display: grid;
 	grid-template-columns: repeat(3, minmax(0, 1fr));

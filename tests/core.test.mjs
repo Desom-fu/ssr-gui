@@ -2,10 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
 import {
+	ADVANCED_RECORDER_FIELDS,
 	buildRecorderArgs,
 	inferOutputPath,
+	MAIN_FIELD_KEYS,
 	outputFormat,
 	replaceOutputExtension,
+	replaceOutputFilename,
 	RECORDER_FIELDS,
 	RECORDER_DEFAULTS,
 	progressFromOutput,
@@ -34,6 +37,9 @@ test("output formats provide extensions and FFmpeg options", () => {
 	assert.match(outputFormat("webm").ffmpegOutputOptions, /libvpx-vp9/);
 	assert.equal(replaceOutputExtension("D:/videos/song.mkv", path.win32, "mp4"), "D:\\videos\\song.mp4");
 	assert.equal(replaceOutputExtension("song.unknown", path.posix, "ts"), "song.ts");
+	assert.equal(replaceOutputFilename("D:\\videos\\song.mkv", "final take", path.win32, "mp4"), "D:\\videos\\final take.mp4");
+	assert.equal(replaceOutputFilename("/videos/song.mkv", "../unsafe.webm", path.posix, "webm"), "/videos/unsafe.webm");
+	assert.equal(replaceOutputFilename("", "", path.posix, "mkv"), "");
 });
 
 test("desktop recording accepts recorder and legacy output field names", () => {
@@ -54,7 +60,8 @@ test("recorder arguments use explicit values accepted by minimist adapter", () =
 		height: 1080,
 		fps: 60,
 		speed: 2,
-		noteSize: 1,
+		noteSizeTap: 0.95,
+		noteSizeDrag: 0.65,
 		resultsDuration: 1.5,
 		waitForMusic: true,
 		avoidDownloadingFonts: false,
@@ -69,6 +76,9 @@ test("recorder arguments use explicit values accepted by minimist adapter", () =
 	assert.equal(args.includes("--lyrica5"), false);
 	const outputIndex = args.indexOf("--output");
 	assert.deepEqual(args.slice(outputIndex, outputIndex + 2), ["--output", "/videos/song.mkv"]);
+	const dragSizeIndex = args.indexOf("--note-size-drag");
+	assert.deepEqual(args.slice(dragSizeIndex, dragSizeIndex + 2), ["--note-size-drag", "0.65"]);
+	assert.equal(args.includes("--note-size"), false);
 });
 
 test("FFmpeg option values beginning with a dash stay values", () => {
@@ -77,7 +87,7 @@ test("FFmpeg option values beginning with a dash stay values", () => {
 	assert.equal(args[index], "--ffmpeg-output-options=-c:a aac -b:a 192k");
 });
 
-test("the GUI schema covers all 85 recorder defaults exactly once", async () => {
+test("the GUI schema covers all 91 recorder defaults exactly once", async () => {
 	const fs = await import("node:fs/promises");
 	const path = await import("node:path");
 	const sourcePath = process.env.SSR_RECORD_SOURCE
@@ -86,21 +96,36 @@ test("the GUI schema covers all 85 recorder defaults exactly once", async () => 
 	let source = "";
 	try { source = await fs.readFile(sourcePath, "utf8"); } catch { /* CI may not checkout the sibling source. */ }
 	if (!source) {
-		assert.equal(RECORDER_FIELDS.length, 85);
-		assert.equal(new Set(RECORDER_FIELDS.map(field => field.key)).size, 85);
+		assert.equal(RECORDER_FIELDS.length, 91);
+		assert.equal(new Set(RECORDER_FIELDS.map(field => field.key)).size, 91);
 		return;
 	}
 	const block = source.match(/static DEFAULT_SETTINGS = \{([\s\S]*?)\n\t\}/)?.[1] || "";
 	const upstreamKeys = [...block.matchAll(/^\t\t([A-Za-z0-9]+):/gm)].map(match => match[1]);
-	assert.equal(upstreamKeys.length, 85);
+	assert.equal(upstreamKeys.length, 91);
 	assert.deepEqual(RECORDER_FIELDS.map(field => field.key), upstreamKeys);
 	assert.deepEqual(Object.keys(RECORDER_DEFAULTS), upstreamKeys);
+});
+
+test("main workflow fields are excluded from advanced settings", async () => {
+	const mainKeys = new Set(MAIN_FIELD_KEYS);
+	const advancedKeys = new Set(ADVANCED_RECORDER_FIELDS.map(field => field.key));
+	assert.equal(mainKeys.size, MAIN_FIELD_KEYS.length);
+	for (const key of mainKeys) {
+		assert.ok(RECORDER_FIELDS.some(field => field.key === key), `${key} must be a recorder field`);
+		assert.equal(advancedKeys.has(key), false, `${key} must not be duplicated in advanced settings`);
+	}
+	assert.equal(mainKeys.size + advancedKeys.size, RECORDER_FIELDS.length);
+	const html = await (await import("node:fs/promises")).readFile(new URL("../app/index.html", import.meta.url), "utf8");
+	for (const id of ["nickname", "avatar-source", "avatar-online", "avatar-upload", "avatar-gravatar", "output-filename"]) {
+		assert.match(html, new RegExp(`id=["']${id}["']`));
+	}
 });
 
 test("recorder argument validation rejects unsafe numeric values", () => {
 	const settings = {
 		cliPath: "cli", ffmpegPath: "ffmpeg", levelPath: "level", outputPath: "out", tempDir: "tmp",
-		width: 1920, height: 1080, fps: 60, speed: 2, noteSize: 1, resultsDuration: 1,
+		width: 1920, height: 1080, fps: 60, speed: 2, noteSizeTap: 0.95, resultsDuration: 1,
 	};
 	assert.throws(() => buildRecorderArgs({ ...settings, fps: 0 }), /fps must be between/);
 	assert.throws(() => buildRecorderArgs({ ...settings, width: Number.NaN }), /width must be between/);

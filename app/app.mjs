@@ -1,10 +1,11 @@
-import { FIELD_GROUPS, FIELD_LABELS, RECORDER_DEFAULTS, RECORDER_FIELDS, fieldGroup, outputFormat, progressFromOutput, recordingPhaseFromOutput, replaceOutputExtension, settingsForPreset } from "./core.mjs";
+import { ADVANCED_RECORDER_FIELDS, FIELD_GROUPS, FIELD_LABELS, RECORDER_DEFAULTS, fieldGroup, outputFormat, progressFromOutput, recordingPhaseFromOutput, replaceOutputExtension, replaceOutputFilename, settingsForPreset } from "./core.mjs";
 import { DesktopPlatform } from "./platform.mjs";
 
 const platform = new DesktopPlatform();
 const elements = Object.fromEntries([
 	"record-form", "runtime-badge", "choose-level", "level-name", "level-path", "chart-select",
-	"choose-output", "output-path", "output-format", "video-width", "video-height", "video-fps", "speed", "note-size", "wait-music", "system-fonts",
+	"choose-output", "output-path", "output-format", "output-filename", "video-width", "video-height", "video-fps", "speed", "wait-music", "system-fonts",
+	"nickname", "avatar-source", "avatar-online", "avatar-upload", "avatar-gravatar", "avatar-online-field", "avatar-upload-field", "avatar-gravatar-field",
 	"results-duration", "advanced-groups", "start-record", "cancel-record", "state-mark", "state-eyebrow",
 	"state-title", "state-detail", "progress-bar", "reveal-output", "log-output", "clear-log",
 ].map(id => [id, document.getElementById(id)]));
@@ -77,14 +78,7 @@ function updateCustomValue(definition, control) {
 	else if (definition.type === "file-array") customValues[definition.key] = [...(control.files || [])].map(file => file.path || file.name);
 	else if (definition.type === "array") customValues[definition.key] = control.value.split(",").map(item => item.trim()).filter(Boolean);
 	else customValues[definition.key] = control.value;
-	if (["width", "height", "fps", "speed", "noteSize", "resultsDuration"].includes(definition.key)) syncShortcut(definition.key, customValues[definition.key]);
 	updateActions();
-}
-
-function syncShortcut(key, value) {
-	const shortcutIds = { width: "video-width", height: "video-height", fps: "video-fps", speed: "speed", noteSize: "note-size", resultsDuration: "results-duration" };
-	const element = elements[shortcutIds[key]];
-	if (element && document.activeElement !== element) element.value = value;
 }
 
 function renderAdvancedSettings() {
@@ -97,7 +91,7 @@ function renderAdvancedSettings() {
 		elements["advanced-groups"].append(details);
 		return [group.id, details];
 	}));
-	for (const definition of RECORDER_FIELDS) groups.get(fieldGroup(definition.key)).append(makeFieldControl(definition));
+	for (const definition of ADVANCED_RECORDER_FIELDS) groups.get(fieldGroup(definition.key)).append(makeFieldControl(definition));
 }
 
 function collectRecorderSettings() {
@@ -111,7 +105,11 @@ function collectRecorderSettings() {
 	values.height = elements["video-height"].value;
 	values.fps = elements["video-fps"].value;
 	values.speed = elements.speed.value;
-	values.noteSize = elements["note-size"].value;
+	values.nickname = elements.nickname.value;
+	values.avatar = elements["avatar-source"].value;
+	values.avatarOnline = elements["avatar-online"].value;
+	values.avatarUpload = elements["avatar-upload"].files?.[0]?.path || "";
+	values.avatarGravatar = elements["avatar-gravatar"].value;
 	values.resultsDuration = elements["results-duration"].value;
 	values.output = state.outputPath || customValues.output;
 	values.outputPath = values.output;
@@ -124,6 +122,32 @@ function collectRecorderSettings() {
 
 function basename(filename) {
 	return filename ? platform.path.basename(filename) : "";
+}
+
+function updateAvatarFields() {
+	const selected = elements["avatar-source"].value;
+	elements["avatar-online-field"].hidden = selected !== "online";
+	elements["avatar-upload-field"].hidden = selected !== "upload";
+	elements["avatar-gravatar-field"].hidden = selected !== "gravatar";
+}
+
+function setOutputDisplay() {
+	elements["output-path"].textContent = state.outputPath || "选择谱面后自动生成";
+	if (state.outputPath) elements["output-filename"].value = basename(state.outputPath);
+}
+
+function updateOutputFilename(normalizeControl = false) {
+	const raw = elements["output-filename"].value.trim();
+	if (!raw) {
+		updateActions();
+		return;
+	}
+	const format = outputFormat(elements["output-format"].value);
+	state.outputPath = replaceOutputFilename(state.outputPath || customValues.output, raw, platform.path, format.id);
+	state.outputManuallyChosen = true;
+	if (normalizeControl) elements["output-filename"].value = basename(state.outputPath);
+	elements["output-path"].textContent = state.outputPath;
+	updateActions();
 }
 
 function setStatus(kind, eyebrow, title, detail = "00:00") {
@@ -175,7 +199,8 @@ function startTimer() {
 
 function updateActions() {
 	const onlineReady = customValues.levelFile === "online" && Boolean(String(customValues.levelFileOnline || "").trim());
-	const ready = state.runtimeReady && Boolean((state.levelPath || onlineReady) && (state.outputPath || customValues.output));
+	const outputReady = Boolean(elements["output-filename"].value.trim() && (state.outputPath || customValues.output));
+	const ready = state.runtimeReady && Boolean((state.levelPath || onlineReady) && outputReady);
 	elements["start-record"].disabled = !ready || state.running;
 	elements["cancel-record"].disabled = !state.running;
 	elements["choose-level"].disabled = state.running;
@@ -195,7 +220,7 @@ async function useLevel(filename) {
 	state.outputPath = replaceOutputExtension(state.levelPath, platform.path, elements["output-format"].value);
 	elements["level-name"].textContent = basename(filename);
 	elements["level-path"].textContent = state.levelPath;
-	elements["output-path"].textContent = state.outputPath;
+	setOutputDisplay();
 	elements["chart-select"].innerHTML = '<option value="">自动选择</option>';
 	setStatus("", "READING", "正在读取谱面", "00:00");
 	const charts = await platform.inspectLevel(state.levelPath);
@@ -225,14 +250,17 @@ async function chooseOutput() {
 	if (!filename) return;
 	state.outputManuallyChosen = true;
 	state.outputPath = replaceOutputExtension(filename, platform.path, format.id);
-	elements["output-path"].textContent = state.outputPath;
+	setOutputDisplay();
 	updateActions();
 }
 
 function changeOutputFormat() {
-	if (!state.outputPath) return;
-	state.outputPath = replaceOutputExtension(state.outputPath, platform.path, elements["output-format"].value);
-	elements["output-path"].textContent = state.outputPath;
+	if (state.outputPath) {
+		state.outputPath = replaceOutputExtension(state.outputPath, platform.path, elements["output-format"].value);
+		setOutputDisplay();
+	} else {
+		updateOutputFilename(true);
+	}
 }
 
 function applyQualityPreset(name) {
@@ -249,6 +277,9 @@ document.querySelectorAll('input[name="quality"]').forEach(input => {
 	});
 });
 elements["output-format"].addEventListener("change", changeOutputFormat);
+elements["output-filename"].addEventListener("input", () => updateOutputFilename(false));
+elements["output-filename"].addEventListener("change", () => updateOutputFilename(true));
+elements["avatar-source"].addEventListener("change", updateAvatarFields);
 for (const id of ["video-width", "video-height", "video-fps"]) {
 	elements[id].addEventListener("input", () => {
 		const custom = document.querySelector('input[name="quality"][value="custom"]');
@@ -343,6 +374,7 @@ elements["choose-level"].addEventListener("drop", event => {
 });
 
 renderAdvancedSettings();
+updateAvatarFields();
 
 nw.Window.get().on("close", function onClose() {
 	if (!state.running) return this.close(true);
