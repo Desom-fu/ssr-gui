@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import nwbuild from "nw-builder";
 import sharp from "sharp";
 import { builderApplicationOptions, PACKAGED_WINDOW_ICON } from "./nw-build-config.mjs";
+import { RECORDER_COMMIT, RECORDER_VERSION } from "./recorder-version.mjs";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const projectDirectory = path.resolve(scriptDirectory, "..");
@@ -22,7 +23,6 @@ const BUNDLE_FONTS = process.env.SSR_BUNDLE_FONTS === "1" || process.argv.includ
 if (!["win32", "darwin", "linux"].includes(TARGET_PLATFORM)) throw new Error(`Unsupported target platform: ${TARGET_PLATFORM}`);
 if (!["ia32", "x64", "arm64"].includes(TARGET_ARCH)) throw new Error(`Unsupported target architecture: ${TARGET_ARCH}`);
 if (!["ia32", "x64", "arm64"].includes(RUNTIME_ARCH)) throw new Error(`Unsupported runtime architecture: ${RUNTIME_ARCH}`);
-const RECORDER_COMMIT = "75c5788010bcf7ae5c19d09fd44516885391bc47";
 const MIN_NODE_VERSION = "22.23.2";
 const FONT_ASSETS = Object.freeze([
 	{
@@ -206,6 +206,10 @@ async function resolveGameSource(recorderSource) {
 
 async function copyRecorder() {
 	const source = await checkoutRecorder();
+	const recorderPackage = JSON.parse(await readFile(path.join(source, "package.json"), "utf8"));
+	if (recorderPackage.name !== "sunniesnow-record" || recorderPackage.version !== RECORDER_VERSION) {
+		throw new Error(`Expected sunniesnow-record ${RECORDER_VERSION}, found ${recorderPackage.name || "unknown"} ${recorderPackage.version || "unknown"}.`);
+	}
 	const game = await resolveGameSource(source);
 	const destination = path.join(stageDirectory, "recorder");
 	await mkdir(destination, { recursive: true });
@@ -223,7 +227,7 @@ async function copyRecorder() {
 	});
 	let commit = "";
 	try { commit = await gitOutput(source, ["rev-parse", "HEAD"]); } catch { /* source archive */ }
-	return { source, commit };
+	return { source, commit, version: recorderPackage.version };
 }
 
 async function copyProductionDependencies() {
@@ -560,6 +564,7 @@ async function writeBuildInformation(recorder) {
 		platform: TARGET_PLATFORM,
 		architecture: TARGET_ARCH,
 		runtimeArchitecture: RUNTIME_ARCH,
+		recorderVersion: recorder.version,
 		recorderCommit: recorder.commit || null,
 		bundledFonts: BUNDLE_FONTS,
 	};

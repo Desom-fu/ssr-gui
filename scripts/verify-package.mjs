@@ -2,6 +2,7 @@ import { access, readFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { RECORDER_COMMIT, RECORDER_VERSION } from "./recorder-version.mjs";
 
 const projectDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const stageDirectory = path.join(projectDirectory, "build", "stage");
@@ -45,6 +46,16 @@ for (const filename of [
 	path.join(stageDirectory, "licenses", "FFmpeg-LICENSE.txt"),
 ]) await access(filename);
 const buildInformation = JSON.parse(await readFile(path.join(stageDirectory, "build-info.json"), "utf8"));
+const recorderPackage = JSON.parse(await readFile(path.join(stageDirectory, "recorder", "package.json"), "utf8"));
+if (recorderPackage.name !== "sunniesnow-record" || recorderPackage.version !== RECORDER_VERSION) {
+	throw new Error(`Packaged recorder is ${recorderPackage.name || "unknown"} ${recorderPackage.version || "unknown"}; expected sunniesnow-record ${RECORDER_VERSION}.`);
+}
+if (buildInformation.recorderVersion !== RECORDER_VERSION) {
+	throw new Error(`Build metadata recorder version is ${buildInformation.recorderVersion || "missing"}; expected ${RECORDER_VERSION}.`);
+}
+if (buildInformation.recorderCommit && buildInformation.recorderCommit !== RECORDER_COMMIT) {
+	throw new Error(`Build metadata recorder commit is ${buildInformation.recorderCommit}; expected ${RECORDER_COMMIT}.`);
+}
 if (process.env.SSR_EXPECT_BUNDLED_FONTS === "1") {
 	if (buildInformation.bundledFonts !== true) throw new Error("Package is not marked as the bundled-font edition.");
 	for (const filename of [

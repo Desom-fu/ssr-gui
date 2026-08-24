@@ -1,0 +1,2 @@
+export const RECORDER_VERSION = "0.5.1";
+export const RECORDER_COMMIT = "f9202d15c14805a0f23783b9f5d1e2945387cd72";

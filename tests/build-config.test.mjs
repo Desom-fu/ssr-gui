@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { builderApplicationOptions, platformArtifactName } from "../scripts/nw-build-config.mjs";
+import { RECORDER_COMMIT, RECORDER_VERSION } from "../scripts/recorder-version.mjs";
 
 test("builder configuration identifies every desktop platform", () => {
 	const source = { name: "ssr-gui", version: "1.2.3" };
@@ -57,11 +58,11 @@ test("Node is a minimum requirement, not a pinned runtime", async () => {
 test("release version and pinned recorder are synchronized", async () => {
 	const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 	const lockfile = JSON.parse(await readFile(new URL("../package-lock.json", import.meta.url), "utf8"));
-	const buildScript = await readFile(new URL("../scripts/build-nw.mjs", import.meta.url), "utf8");
-	assert.equal(packageJson.version, "0.2.0");
+	assert.equal(packageJson.version, "0.2.1");
 	assert.equal(lockfile.version, packageJson.version);
 	assert.equal(lockfile.packages[""].version, packageJson.version);
-	assert.match(buildScript, /RECORDER_COMMIT = "75c5788010bcf7ae5c19d09fd44516885391bc47"/);
+	assert.equal(RECORDER_VERSION, "0.5.1");
+	assert.equal(RECORDER_COMMIT, "f9202d15c14805a0f23783b9f5d1e2945387cd72");
 });
 
 test("bundled LXGW WenKai assets use the real pinned Git tag", async () => {
