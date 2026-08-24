@@ -109,6 +109,41 @@ export class DesktopPlatform {
 		});
 	}
 
+	getConfigPath() {
+		return path.join(nw.App.dataPath, "ssr-gui-config.json");
+	}
+
+	async readConfig(filename) {
+		const source = await fs.promises.readFile(filename, "utf8");
+		const config = JSON.parse(source);
+		if (!config || typeof config !== "object" || Array.isArray(config)) {
+			throw new Error("配置文件必须是 JSON 对象。");
+		}
+		return config;
+	}
+
+	async writeConfig(filename, config) {
+		if (!filename) throw new Error("配置文件路径不能为空。");
+		const destination = path.resolve(filename);
+		await fs.promises.mkdir(path.dirname(destination), { recursive: true });
+		await fs.promises.writeFile(destination, `${JSON.stringify(config, null, "\t")}\n`, "utf8");
+		return destination;
+	}
+
+	async loadAutoConfig() {
+		const filename = this.getConfigPath();
+		try {
+			return await this.readConfig(filename);
+		} catch (error) {
+			if (error?.code === "ENOENT") return null;
+			throw new Error(`无法读取最近配置：${error.message}`);
+		}
+	}
+
+	async saveAutoConfig(config) {
+		return this.writeConfig(this.getConfigPath(), config);
+	}
+
 	async record(settings, handlers = {}) {
 		if (this.child) throw new Error("A recording is already running.");
 		const runtime = await this.verifyRuntime();

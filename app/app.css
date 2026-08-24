@@ -272,6 +272,29 @@ button img {
 	padding: 0 10px;
 }
 
+.field input[type="file"] {
+	padding: 4px 8px;
+	line-height: 26px;
+}
+
+.field input[type="file"]::file-selector-button {
+	height: 26px;
+	margin: 0 8px 0 0;
+	padding: 0 9px;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	background: var(--surface-2);
+	color: var(--text);
+	font: inherit;
+	line-height: 24px;
+	vertical-align: middle;
+	cursor: pointer;
+}
+
+.field input[type="file"]::file-selector-button:hover {
+	border-color: var(--accent);
+}
+
 .field select:disabled,
 .field input:disabled,
 button:disabled {
@@ -328,6 +351,10 @@ button:disabled {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
 	gap: 10px;
+}
+
+.field-row + .path-picker {
+	margin-top: 10px;
 }
 
 .avatar-detail[hidden] {
@@ -420,6 +447,54 @@ button:disabled {
 .advanced-settings {
 	padding: 16px 22px 18px;
 	border-bottom: 1px solid var(--line);
+}
+
+.config-tools {
+	padding: 13px 22px 14px;
+	border-bottom: 1px solid var(--line);
+	background: color-mix(in srgb, var(--surface) 92%, var(--surface-2));
+}
+
+.config-tools-heading {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 10px;
+	color: var(--muted);
+	font-size: 11px;
+	font-weight: 700;
+}
+
+.config-tools-heading small {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 10px;
+	font-weight: 500;
+}
+
+.config-tools-heading small.error {
+	color: var(--danger);
+}
+
+.config-tools-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 9px;
+}
+
+.config-tools .config-button {
+	height: 30px;
+	margin-top: 0;
+	padding: 0 10px;
+	font-size: 11px;
+}
+
+.config-toggle {
+	margin-left: auto;
+	white-space: nowrap;
 }
 
 .advanced-settings > summary,
