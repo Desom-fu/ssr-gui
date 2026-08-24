@@ -110,7 +110,7 @@ export class DesktopPlatform {
 	}
 
 	getConfigPath() {
-		return path.join(nw.App.dataPath, "ssr-gui-config.json");
+		return path.join(path.dirname(process.execPath), "ssr-gui-config.json");
 	}
 
 	async readConfig(filename) {

@@ -8,7 +8,7 @@ Version 0.3.0 pins the final `sunniesnow-record` v0.5.1 release. The build and p
 
 The main workflow exposes chart and difficulty selection, quality, nickname and avatar, output filename, format, and location. Available formats are MKV, MP4, WebM, MOV, AVI, and MPEG-TS. Every remaining `sunniesnow-record` option is available once in the advanced settings, including the independent Tap, Drag, Flick, Hold, Drag-Flick, head-only Hold, and background-note sizes.
 
-The configuration toolbar saves and imports JSON files. The last configuration is restored from the application data directory on startup, and automatic saving is enabled by default; it can be disabled beside the save/import buttons.
+The configuration toolbar saves and imports JSON files. The last configuration is restored from `ssr-gui-config.json` beside the application executable, and automatic saving is enabled by default; it can be disabled beside the save/import buttons.
 
 ## Release packages
 

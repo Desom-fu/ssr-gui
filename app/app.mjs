@@ -34,6 +34,10 @@ function displayLabel(field) {
 	return FIELD_LABELS[field.key] || field.key.replace(/([A-Z])/g, " $1").replace(/^./, value => value.toUpperCase());
 }
 
+function selectedFilePath(input) {
+	return input?.files?.[0]?.path || input?.value || "";
+}
+
 function makeFieldControl(definition) {
 	const wrapper = document.createElement("label");
 	wrapper.className = "advanced-field";
@@ -115,7 +119,7 @@ function collectRecorderSettings() {
 	values.nickname = elements.nickname.value;
 	values.avatar = elements["avatar-source"].value;
 	values.avatarOnline = elements["avatar-online"].value;
-	values.avatarUpload = elements["avatar-upload"].files?.[0]?.path || customValues.avatarUpload || "";
+	values.avatarUpload = selectedFilePath(elements["avatar-upload"]) || customValues.avatarUpload || "";
 	values.avatarGravatar = elements["avatar-gravatar"].value;
 	values.resultsDuration = elements["results-duration"].value;
 	values.output = state.outputPath || customValues.output;
@@ -365,6 +369,7 @@ function setMainValues(settings) {
 	setValue("avatar-source", settings.avatar);
 	setValue("avatar-online", settings.avatarOnline);
 	setValue("avatar-gravatar", settings.avatarGravatar);
+	if (settings.avatarUpload != null) customValues.avatarUpload = String(settings.avatarUpload);
 	setValue("results-duration", settings.resultsDuration);
 	elements["wait-music"].checked = booleanValue(settings.waitForMusic);
 	elements["system-fonts"].checked = booleanValue(settings.avoidDownloadingFonts);
@@ -458,7 +463,7 @@ elements["avatar-source"].addEventListener("change", () => {
 		scheduleAutoSave();
 });
 elements["avatar-upload"].addEventListener("change", () => {
-	customValues.avatarUpload = elements["avatar-upload"].files?.[0]?.path || "";
+	customValues.avatarUpload = selectedFilePath(elements["avatar-upload"]);
 	scheduleAutoSave();
 });
 for (const id of ["video-width", "video-height", "video-fps"]) {
