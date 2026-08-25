@@ -58,7 +58,7 @@ test("Node is a minimum requirement, not a pinned runtime", async () => {
 test("release version and pinned recorder are synchronized", async () => {
 	const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 	const lockfile = JSON.parse(await readFile(new URL("../package-lock.json", import.meta.url), "utf8"));
-	assert.equal(packageJson.version, "0.3.0");
+	assert.equal(packageJson.version, "0.3.1");
 	assert.equal(lockfile.version, packageJson.version);
 	assert.equal(lockfile.packages[""].version, packageJson.version);
 	assert.equal(RECORDER_VERSION, "0.5.1");
@@ -71,4 +71,12 @@ test("bundled LXGW WenKai assets use the real pinned Git tag", async () => {
 	assert.match(buildScript, /LxgwWenKai\/v1\.245\.1\/fonts\/TTF\/LXGWWenKai-Regular\.ttf/);
 	assert.match(buildScript, /LxgwWenKai\/v1\.245\.1\/OFL\.txt/);
 	assert.doesNotMatch(buildScript, /LxgwWenKai(?:@|\/)1\.245\.1\//);
+});
+
+test("packaged recorder falls back when @pixi/node WebGL setup fails", async () => {
+	const buildScript = await readFile(new URL("../scripts/build-nw.mjs", import.meta.url), "utf8");
+	assert.match(buildScript, /continuing without WebGL support/);
+	assert.match(buildScript, /reading 'getUniformLocation'/);
+	assert.match(buildScript, /reading 'getExtension'/);
+	assert.match(buildScript, /if \(!this\.app\?\.renderer\)/);
 });

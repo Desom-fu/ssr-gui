@@ -4,7 +4,7 @@
 
 `ssr-gui` 是 [sunniesnow-record](https://github.com/sunniesnow/sunniesnow-record) 的桌面图形界面。发行包已经包含 Node.js、FFmpeg、recorder、Sunniesnow 和全部运行依赖，最终用户不需要安装或配置开发环境。
 
-0.3.0 版精确固定到 `sunniesnow-record` 最终发布的 v0.5.1。构建与成品包校验都会检查内置 recorder 的版本；使用 Git 源码构建时还会核对最终 release commit。
+0.3.1 版精确固定到 `sunniesnow-record` 最终发布的 v0.5.1。构建与成品包校验都会检查内置 recorder 的版本；使用 Git 源码构建时还会核对最终 release commit。本次发布还加强了打包 recorder 对 `@pixi/node` WebGL 初始化失败的处理，在缺少 headless GL 的 Windows 环境里可以正常回退而不是直接崩溃。
 
 主界面直接提供谱面、难度、画质、昵称、头像、输出文件名、格式与位置。可选格式包括 MKV、MP4、WebM、MOV、AVI 和 MPEG-TS。其余每个 `sunniesnow-record` 参数只在更多设置中出现一次，包括 Tap、Drag、Flick、Hold、Drag-Flick、仅头 Hold 与背景音符的独立大小。
 

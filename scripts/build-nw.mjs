@@ -457,6 +457,55 @@ async function patchRecorderOutputOptions() {
 	await writeFile(filename, source);
 }
 
+async function patchRecorderWebglFallback() {
+	const filename = path.join(stageDirectory, "recorder", "sunniesnow.mjs");
+	let source = await readFile(filename, "utf8");
+	const original = source;
+	const anchor = /PIXI\.NodeAdapter\.fetch = patchedFetch;\r?\n/;
+	const injection = `PIXI.NodeAdapter.fetch = patchedFetch;
+const originalNodeCanvasGetContext = PIXI.NodeCanvasElement.prototype.getContext;
+let warnedAboutUnavailableWebGL = false;
+PIXI.NodeCanvasElement.prototype.getContext = function patchedGetContext(contextId, options) {
+	if (contextId !== 'webgl' && contextId !== 'experimental-webgl') {
+		return originalNodeCanvasGetContext.call(this, contextId, options);
+	}
+	try {
+		return originalNodeCanvasGetContext.call(this, contextId, options);
+	} catch (error) {
+		const message = String(error?.message ?? error);
+		if (!message.includes("reading 'getUniformLocation'") && !message.includes("reading 'getExtension'")) {
+			throw error;
+		}
+		if (!warnedAboutUnavailableWebGL) {
+			console.warn('[recorder] @pixi/node could not create a WebGL context; continuing without WebGL support.');
+			warnedAboutUnavailableWebGL = true;
+		}
+		return null;
+	}
+};
+`;
+	if (!anchor.test(source)) throw new Error("Unable to locate @pixi/node fetch patch anchor.");
+	source = source.replace(anchor, injection);
+	if (source === original || !source.includes("continuing without WebGL support")) {
+		throw new Error("Unable to patch recorder WebGL fallback handling.");
+	}
+	await writeFile(filename, source);
+}
+
+async function patchRecorderDestroyGuard() {
+	const filename = path.join(stageDirectory, "recorder", "game", "js", "Game.js");
+	let source = await readFile(filename, "utf8");
+	const original = source;
+	const target = /\t\tif \(!this\.app\) \{\r?\n\t\t\treturn;\r?\n\t\t\}\r?\n\t\tthis\.app\.destroy\(\{/;
+	const replacement = `\t\tif (!this.app?.renderer) {\n\t\t\treturn;\n\t\t}\n\t\tthis.app.destroy({`;
+	if (!target.test(source)) throw new Error("Unable to locate game destroy guard.");
+	source = source.replace(target, replacement);
+	if (source === original || !source.includes("!this.app?.renderer")) {
+		throw new Error("Unable to patch recorder destroy guard.");
+	}
+	await writeFile(filename, source);
+}
+
 async function copyThirdPartyLicenses() {
 	const licenses = path.join(stageDirectory, "licenses");
 	const nodeVersion = runtimeVersion();
@@ -597,6 +646,8 @@ async function prepareStage() {
 	}
 	const recorder = await copyRecorder();
 	await patchRecorderOutputOptions();
+	await patchRecorderWebglFallback();
+	await patchRecorderDestroyGuard();
 	await Promise.all([copyProductionDependencies(), copyRuntime(), copyFfmpeg(), copyLucideIcons(), copyThirdPartyLicenses(), bundleFonts()]);
 	await generateIcons();
 	await writeBuildInformation(recorder);
