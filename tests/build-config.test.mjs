@@ -58,7 +58,7 @@ test("Node is a minimum requirement, not a pinned runtime", async () => {
 test("release version and pinned recorder are synchronized", async () => {
 	const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 	const lockfile = JSON.parse(await readFile(new URL("../package-lock.json", import.meta.url), "utf8"));
-	assert.equal(packageJson.version, "0.3.1");
+	assert.equal(packageJson.version, "0.3.2");
 	assert.equal(lockfile.version, packageJson.version);
 	assert.equal(lockfile.packages[""].version, packageJson.version);
 	assert.equal(RECORDER_VERSION, "0.5.1");
@@ -79,4 +79,13 @@ test("packaged recorder falls back when @pixi/node WebGL setup fails", async () 
 	assert.match(buildScript, /reading 'getUniformLocation'/);
 	assert.match(buildScript, /reading 'getExtension'/);
 	assert.match(buildScript, /if \(!this\.app\?\.renderer\)/);
+});
+
+test("packaged recorder keeps node-side asset URLs alive and has ffmpeg fallbacks", async () => {
+	const buildScript = await readFile(new URL("../scripts/build-nw.mjs", import.meta.url), "utf8");
+	assert.match(buildScript, /persistentObjectUrl/);
+	assert.match(buildScript, /FFmpeg image conversion/);
+	assert.match(buildScript, /FFmpeg audio conversion/);
+	assert.match(buildScript, /ObjectUrl\.create = function persistentObjectUrl/);
+	assert.match(buildScript, /fromUrlWithFallback/);
 });

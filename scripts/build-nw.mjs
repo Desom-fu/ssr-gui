@@ -506,6 +506,161 @@ async function patchRecorderDestroyGuard() {
 	await writeFile(filename, source);
 }
 
+async function patchRecorderNodeAssetFallbacks() {
+	const filename = path.join(stageDirectory, "recorder", "sunniesnow.mjs");
+	let source = await readFile(filename, "utf8");
+	const original = source;
+	const anchor = /Sunniesnow\.Patches\.apply\(\);\r?\n/;
+	const injection = `Sunniesnow.Patches.apply();
+function applyNodeAssetFallbacks() {
+	if (Sunniesnow.Utils.isBrowser()) {
+		return;
+	}
+	const nodeRequire = module.createRequire(import.meta.url);
+	const childProcess = nodeRequire('child_process');
+	const fsPromises = fs.promises;
+	const normalizeMimeType = type => typeof type === 'string' ? type.split(';', 1)[0].trim().toLowerCase() : '';
+	const toArrayBuffer = buffer => buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+	const nextTempAssetPath = extension => path.join(
+		Sunniesnow.record?.tempDir || dir,
+		'ssr-gui-asset-' + Date.now() + '-' + Math.random().toString(16).slice(2) + extension
+	);
+	const assetExtension = (source, type, fallback = '.bin') => {
+		const normalizedType = normalizeMimeType(type);
+		let extension = normalizedType ? mime.getExtension(normalizedType) || '' : '';
+		if (!extension && typeof source === 'string') {
+			try {
+				const parsed = new URL(source);
+				if (parsed.protocol === 'file:') {
+					extension = path.extname(url.fileURLToPath(parsed));
+				} else if (parsed.protocol !== 'blob:' && parsed.protocol !== 'data:') {
+					extension = path.extname(parsed.pathname);
+				}
+			} catch (error) {
+				extension = path.extname(source);
+			}
+		}
+		if (extension && !extension.startsWith('.')) {
+			extension = '.' + extension;
+		}
+		return extension || fallback;
+	};
+	const readAssetBuffer = async source => {
+		if (typeof source === 'string') {
+			if (/^[A-Za-z]:[\\/]/.test(source)) {
+				return await fsPromises.readFile(source);
+			}
+			if (source.startsWith('file:')) {
+				return await fsPromises.readFile(url.fileURLToPath(source));
+			}
+			const response = await fetch(source);
+			if (!response.ok) {
+				throw new Error('HTTP ' + response.status + (response.statusText ? ': ' + response.statusText : ''));
+			}
+			return Buffer.from(await response.arrayBuffer());
+		}
+		if (source instanceof Blob) {
+			return Buffer.from(await source.arrayBuffer());
+		}
+		if (source instanceof ArrayBuffer) {
+			return Buffer.from(source);
+		}
+		if (ArrayBuffer.isView(source)) {
+			return Buffer.from(source.buffer, source.byteOffset, source.byteLength);
+		}
+		throw new TypeError('Unsupported node asset source: ' + typeof source);
+	};
+	const materializeAsset = async (source, type, fallback = '.bin') => {
+		fs.mkdirSync(Sunniesnow.record?.tempDir || dir, {recursive: true});
+		const destination = nextTempAssetPath(assetExtension(source, type, fallback));
+		await fsPromises.writeFile(destination, await readAssetBuffer(source));
+		return destination;
+	};
+	const runFfmpeg = async (args, context) => {
+		await new Promise((resolve, reject) => {
+			const child = childProcess.spawn(Sunniesnow.record?.ffmpeg || 'ffmpeg', args, {
+				stdio: ['ignore', 'pipe', 'pipe'],
+				windowsHide: true
+			});
+			let stderr = '';
+			child.stdout.on('data', () => {});
+			child.stderr.on('data', chunk => { stderr += chunk; });
+			child.once('error', reject);
+			child.once('exit', code => code === 0
+				? resolve()
+				: reject(new Error(context + ' failed: ' + (stderr.trim() || ('ffmpeg exited with code ' + code)))));
+		});
+	};
+	const originalLoadTexture = Sunniesnow.Assets.loadTexture.bind(Sunniesnow.Assets);
+	const originalAudioDecode = Sunniesnow.Assets.audioDecode.bind(Sunniesnow.Assets);
+	Sunniesnow.ObjectUrl.create = function persistentObjectUrl(blob) {
+		return this.createPersistent(blob);
+	};
+	Sunniesnow.Assets.loadTexture = async function patchedLoadTexture(assetUrl) {
+		const isSvg = Sunniesnow.ObjectUrl.types[assetUrl] === 'image/svg+xml' || PIXI.loadSvg.test(assetUrl);
+		try {
+			return await originalLoadTexture(assetUrl);
+		} catch (error) {
+			if (isSvg) {
+				throw error;
+			}
+			const input = await materializeAsset(assetUrl, Sunniesnow.ObjectUrl.types[assetUrl], '.img');
+			const output = nextTempAssetPath('.png');
+			try {
+				await runFfmpeg(['-y', '-nostdin', '-i', input, '-frames:v', '1', output], 'FFmpeg image conversion');
+			} catch (fallbackError) {
+				fallbackError.message = String(error?.message ?? error) + '; ' + fallbackError.message;
+				throw fallbackError;
+			}
+			const result = await Sunniesnow.Assets.loadPixiAssets(url.pathToFileURL(output).href, {parser: 'node-texture'});
+			if (!(result instanceof PIXI.Texture)) {
+				throw error;
+			}
+			return result;
+		}
+	};
+	Sunniesnow.Assets.audioDecode = async function patchedAudioDecode(arrayBuffer, context, options = {}) {
+		try {
+			return await originalAudioDecode(arrayBuffer, context);
+		} catch (error) {
+			const source = options.blob ?? options.url ?? arrayBuffer;
+			const type = options.type ?? options.blob?.type;
+			const input = await materializeAsset(source, type, '.bin');
+			const output = nextTempAssetPath('.wav');
+			try {
+				await runFfmpeg(['-y', '-nostdin', '-i', input, '-vn', '-acodec', 'pcm_s16le', output], 'FFmpeg audio conversion');
+			} catch (fallbackError) {
+				fallbackError.message = String(error?.message ?? error) + '; ' + fallbackError.message;
+				throw fallbackError;
+			}
+			return await originalAudioDecode(toArrayBuffer(await fsPromises.readFile(output)), context);
+		}
+	};
+	Sunniesnow.HookAudio.prototype.apply = async function patchedHookAudio(value) {
+		const arrayBuffer = (await value.arrayBuffer()).slice();
+		return await Sunniesnow.Assets.audioDecode(arrayBuffer, Sunniesnow.Audio.context, {blob: value, type: value.type});
+	};
+	Sunniesnow.Audio.fromArrayBuffer = async function fromArrayBufferWithFallback(arrayBuffer, volume = 1, playbackRate = 1, options = {}) {
+		arrayBuffer = arrayBuffer.slice();
+		const audioBuffer = await Sunniesnow.Assets.audioDecode(arrayBuffer, this.context, options);
+		return new this(audioBuffer, volume, playbackRate);
+	};
+	Sunniesnow.Audio.fromUrl = async function fromUrlWithFallback(assetUrl, volume = 1, playbackRate = 1) {
+		const response = await fetch(assetUrl);
+		const arrayBuffer = await response.arrayBuffer();
+		return await this.fromArrayBuffer(arrayBuffer, volume, playbackRate, {url: assetUrl, type: response.headers.get('Content-Type')});
+	};
+}
+applyNodeAssetFallbacks();
+`;
+	if (!anchor.test(source)) throw new Error("Unable to locate node asset fallback anchor.");
+	source = source.replace(anchor, injection);
+	if (source === original || !source.includes("FFmpeg image conversion") || !source.includes("persistentObjectUrl")) {
+		throw new Error("Unable to patch recorder node asset fallbacks.");
+	}
+	await writeFile(filename, source);
+}
+
 async function copyThirdPartyLicenses() {
 	const licenses = path.join(stageDirectory, "licenses");
 	const nodeVersion = runtimeVersion();
@@ -648,6 +803,7 @@ async function prepareStage() {
 	await patchRecorderOutputOptions();
 	await patchRecorderWebglFallback();
 	await patchRecorderDestroyGuard();
+	await patchRecorderNodeAssetFallbacks();
 	await Promise.all([copyProductionDependencies(), copyRuntime(), copyFfmpeg(), copyLucideIcons(), copyThirdPartyLicenses(), bundleFonts()]);
 	await generateIcons();
 	await writeBuildInformation(recorder);
