@@ -506,6 +506,63 @@ async function patchRecorderDestroyGuard() {
 	await writeFile(filename, source);
 }
 
+async function patchRecorderActualRendererSync() {
+	const filename = path.join(stageDirectory, "recorder", "game", "js", "Game.js");
+	let source = await readFile(filename, "utf8");
+	const original = source;
+	const target = /\t\tawait this\.app\.init\(appOptions\);\r?\n/;
+	const replacement = `\t\tawait this.app.init(appOptions);\n\t\tif (this.app.renderer?.type === PIXI.RendererType?.CANVAS) {\n\t\t\tthis.settings.renderer = 'canvas';\n\t\t\tthis.overrideSettings ??= {};\n\t\t\tthis.overrideSettings.renderer = 'canvas';\n\t\t} else if (this.app.renderer?.type === PIXI.RendererType?.WEBGPU) {\n\t\t\tthis.settings.renderer = 'webgpu';\n\t\t\tthis.overrideSettings ??= {};\n\t\t\tthis.overrideSettings.renderer = 'webgpu';\n\t\t} else if (this.app.renderer?.type === PIXI.RendererType?.WEBGL) {\n\t\t\tthis.settings.renderer = 'webgl';\n\t\t\tthis.overrideSettings ??= {};\n\t\t\tthis.overrideSettings.renderer = 'webgl';\n\t\t}\n`;
+	if (!target.test(source)) throw new Error("Unable to locate renderer init call for renderer sync.");
+	source = source.replace(target, replacement);
+	if (source === original || !source.includes("this.overrideSettings.renderer = 'canvas'")) {
+		throw new Error("Unable to patch recorder actual renderer synchronization.");
+	}
+	await writeFile(filename, source);
+}
+
+async function patchRecorderCanvasScreenshotFallback() {
+	const filename = path.join(stageDirectory, "recorder", "record.mjs");
+	let source = await readFile(filename, "utf8");
+	const original = source;
+	const target = /\tasync screenshot\(\) \{[\s\S]*?\r?\n\t\}\r?\n\r?\n\tasync exportAudio\(\)/;
+	const replacement = `	async screenshot() {
+		const canvas = Sunniesnow.game.canvas;
+		const gl = canvas?._gl;
+		if (gl) {
+			// use RGBA instead of RGB because of https://github.com/stackgl/headless-gl/issues/265
+			gl.readPixels(0, 0, this.width, this.height, gl.RGBA, gl.UNSIGNED_BYTE, this.tempPixels);
+			await new Promise(resolve => this.videoPipe.write(this.tempPixels, resolve));
+			return;
+		}
+		if (typeof canvas?._getPixels === 'function') {
+			const pixels = canvas._getPixels();
+			if (pixels.length !== this.tempPixels.length) {
+				throw new Error(
+					\`Unexpected canvas pixel buffer size: \${pixels.length}; expected \${this.tempPixels.length}.\`
+				);
+			}
+			const lineByteCount = this.width * 4;
+			for (let srcRow = 0; srcRow < this.height; srcRow++) {
+				const dstRow = this.height - srcRow - 1;
+				const srcIndex = srcRow * lineByteCount;
+				const dstIndex = dstRow * lineByteCount;
+				this.tempPixels.set(pixels.subarray(srcIndex, srcIndex + lineByteCount), dstIndex);
+			}
+			await new Promise(resolve => this.videoPipe.write(this.tempPixels, resolve));
+			return;
+		}
+		throw new Error('The current renderer does not expose readable pixels.');
+	}
+
+	async exportAudio()`;
+	if (!target.test(source)) throw new Error("Unable to locate recorder screenshot implementation.");
+	source = source.replace(target, replacement);
+	if (source === original || !source.includes("canvas?._getPixels") || !source.includes("Unexpected canvas pixel buffer size")) {
+		throw new Error("Unable to patch recorder canvas screenshot fallback.");
+	}
+	await writeFile(filename, source);
+}
+
 async function patchRecorderNodeAssetFallbacks() {
 	const filename = path.join(stageDirectory, "recorder", "sunniesnow.mjs");
 	let source = await readFile(filename, "utf8");
@@ -803,6 +860,8 @@ async function prepareStage() {
 	await patchRecorderOutputOptions();
 	await patchRecorderWebglFallback();
 	await patchRecorderDestroyGuard();
+	await patchRecorderActualRendererSync();
+	await patchRecorderCanvasScreenshotFallback();
 	await patchRecorderNodeAssetFallbacks();
 	await Promise.all([copyProductionDependencies(), copyRuntime(), copyFfmpeg(), copyLucideIcons(), copyThirdPartyLicenses(), bundleFonts()]);
 	await generateIcons();

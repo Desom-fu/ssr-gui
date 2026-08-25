@@ -58,7 +58,7 @@ test("Node is a minimum requirement, not a pinned runtime", async () => {
 test("release version and pinned recorder are synchronized", async () => {
 	const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 	const lockfile = JSON.parse(await readFile(new URL("../package-lock.json", import.meta.url), "utf8"));
-	assert.equal(packageJson.version, "0.3.2");
+	assert.equal(packageJson.version, "0.3.3");
 	assert.equal(lockfile.version, packageJson.version);
 	assert.equal(lockfile.packages[""].version, packageJson.version);
 	assert.equal(RECORDER_VERSION, "0.5.1");
@@ -88,4 +88,12 @@ test("packaged recorder keeps node-side asset URLs alive and has ffmpeg fallback
 	assert.match(buildScript, /FFmpeg audio conversion/);
 	assert.match(buildScript, /ObjectUrl\.create = function persistentObjectUrl/);
 	assert.match(buildScript, /fromUrlWithFallback/);
+});
+
+test("packaged recorder can capture frames after canvas fallback", async () => {
+	const buildScript = await readFile(new URL("../scripts/build-nw.mjs", import.meta.url), "utf8");
+	assert.match(buildScript, /canvas\?\._getPixels/);
+	assert.match(buildScript, /Unexpected canvas pixel buffer size/);
+	assert.match(buildScript, /overrideSettings\.renderer = 'canvas'/);
+	assert.match(buildScript, /The current renderer does not expose readable pixels/);
 });
