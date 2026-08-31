@@ -117,7 +117,7 @@ test("main workflow fields are excluded from advanced settings", async () => {
 	}
 	assert.equal(mainKeys.size + advancedKeys.size, RECORDER_FIELDS.length);
 	const html = await (await import("node:fs/promises")).readFile(new URL("../app/index.html", import.meta.url), "utf8");
-	for (const id of ["nickname", "avatar-source", "avatar-online", "avatar-upload", "avatar-gravatar", "output-filename"]) {
+	for (const id of ["nickname", "avatar-source", "avatar-online", "avatar-upload", "avatar-upload-name", "avatar-gravatar", "output-filename"]) {
 		assert.match(html, new RegExp(`id=["']${id}["']`));
 	}
 });

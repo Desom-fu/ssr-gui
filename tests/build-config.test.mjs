@@ -58,11 +58,18 @@ test("Node is a minimum requirement, not a pinned runtime", async () => {
 test("release version and pinned recorder are synchronized", async () => {
 	const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 	const lockfile = JSON.parse(await readFile(new URL("../package-lock.json", import.meta.url), "utf8"));
-	assert.equal(packageJson.version, "0.3.3");
+	assert.equal(packageJson.version, "0.3.4");
 	assert.equal(lockfile.version, packageJson.version);
 	assert.equal(lockfile.packages[""].version, packageJson.version);
 	assert.equal(RECORDER_VERSION, "0.5.1");
 	assert.equal(RECORDER_COMMIT, "f9202d15c14805a0f23783b9f5d1e2945387cd72");
+});
+
+test("desktop layout keeps the app bar and workspace tied to the viewport", async () => {
+	const css = await readFile(new URL("../app/app.css", import.meta.url), "utf8");
+	assert.match(css, /body\s*\{[\s\S]*display:\s*flex;[\s\S]*flex-direction:\s*column;/);
+	assert.match(css, /body\s*\{[\s\S]*position:\s*fixed;[\s\S]*inset:\s*0;/);
+	assert.match(css, /\.workspace\s*\{[\s\S]*flex:\s*1 1 auto;[\s\S]*height:\s*auto;/);
 });
 
 test("bundled LXGW WenKai assets use the real pinned Git tag", async () => {

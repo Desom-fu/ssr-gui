@@ -5,7 +5,7 @@ const platform = new DesktopPlatform();
 const elements = Object.fromEntries([
 	"record-form", "runtime-badge", "choose-level", "level-name", "level-path", "chart-select",
 	"choose-output", "output-path", "output-format", "output-filename", "video-width", "video-height", "video-fps", "speed", "wait-music", "system-fonts",
-	"nickname", "avatar-source", "avatar-online", "avatar-upload", "avatar-gravatar", "avatar-online-field", "avatar-upload-field", "avatar-gravatar-field",
+	"nickname", "avatar-source", "avatar-online", "avatar-upload", "avatar-upload-name", "avatar-gravatar", "avatar-online-field", "avatar-upload-field", "avatar-gravatar-field",
 	"results-duration", "advanced-groups", "start-record", "cancel-record", "state-mark", "state-eyebrow",
 	"state-title", "state-detail", "progress-bar", "reveal-output", "log-output", "clear-log", "save-config", "import-config", "auto-save-config", "config-status",
 ].map(id => [id, document.getElementById(id)]));
@@ -168,6 +168,14 @@ function scheduleAutoSave() {
 
 function basename(filename) {
 	return filename ? platform.path.basename(filename) : "";
+}
+
+function setAvatarUploadDisplay(filename = "") {
+	const path = String(filename || "").trim();
+	const display = elements["avatar-upload-name"];
+	if (!display) return;
+	display.textContent = path ? basename(path) : "未选择";
+	display.title = path;
 }
 
 function updateAvatarFields() {
@@ -370,6 +378,7 @@ function setMainValues(settings) {
 	setValue("avatar-online", settings.avatarOnline);
 	setValue("avatar-gravatar", settings.avatarGravatar);
 	if (settings.avatarUpload != null) customValues.avatarUpload = String(settings.avatarUpload);
+	setAvatarUploadDisplay(customValues.avatarUpload);
 	setValue("results-duration", settings.resultsDuration);
 	elements["wait-music"].checked = booleanValue(settings.waitForMusic);
 	elements["system-fonts"].checked = booleanValue(settings.avoidDownloadingFonts);
@@ -464,6 +473,7 @@ elements["avatar-source"].addEventListener("change", () => {
 });
 elements["avatar-upload"].addEventListener("change", () => {
 	customValues.avatarUpload = selectedFilePath(elements["avatar-upload"]);
+	setAvatarUploadDisplay(customValues.avatarUpload);
 	scheduleAutoSave();
 });
 for (const id of ["video-width", "video-height", "video-fps"]) {
