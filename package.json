@@ -1,6 +1,6 @@
 {
 	"name": "ssr-gui",
-	"version": "0.3.6",
+	"version": "0.3.7",
 	"private": true,
 	"type": "module",
 	"description": "Zero-configuration desktop GUI for sunniesnow-record",

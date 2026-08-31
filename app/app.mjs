@@ -126,8 +126,8 @@ function collectRecorderSettings() {
 	values.outputPath = values.output;
 	const format = outputFormat(elements["output-format"].value);
 	if (!String(customValues.ffmpegOutputOptions || "").trim()) values.ffmpegOutputOptions = format.ffmpegOutputOptions;
-	values.waitForMusic = booleanValue(elements["wait-music"].value);
-	values.avoidDownloadingFonts = booleanValue(elements["system-fonts"].value);
+	values.waitForMusic = elements["wait-music"].checked;
+	values.avoidDownloadingFonts = elements["system-fonts"].checked;
 	return values;
 }
 
@@ -401,8 +401,8 @@ function setMainValues(settings) {
 	if (settings.avatarUpload != null) customValues.avatarUpload = String(settings.avatarUpload);
 	setAvatarUploadDisplay(customValues.avatarUpload);
 	setValue("results-duration", settings.resultsDuration);
-	elements["wait-music"].value = booleanValue(settings.waitForMusic) ? "true" : "false";
-	elements["system-fonts"].value = booleanValue(settings.avoidDownloadingFonts) ? "true" : "false";
+	elements["wait-music"].checked = booleanValue(settings.waitForMusic);
+	elements["system-fonts"].checked = booleanValue(settings.avoidDownloadingFonts);
 	updateAvatarFields();
 }
 
@@ -452,7 +452,7 @@ async function applyConfig(config) {
 	customValues.output = state.outputPath || customValues.output;
 	customValues.levelFileUpload = levelPath;
 	if (config && Object.hasOwn(config, "autoSave")) state.autoSave = booleanValue(config.autoSave);
-	elements["auto-save-config"].value = state.autoSave ? "true" : "false";
+	elements["auto-save-config"].checked = state.autoSave;
 	if (state.outputPath) setOutputDisplay();
 	else elements["output-filename"].value = basename(settings.output || "output.mkv");
 	if (levelPath) await restoreLevel(levelPath, settings.chartSelect || "");
@@ -505,7 +505,7 @@ for (const id of ["video-width", "video-height", "video-fps"]) {
 	});
 }
 elements["auto-save-config"].addEventListener("change", () => {
-	state.autoSave = booleanValue(elements["auto-save-config"].value);
+	state.autoSave = elements["auto-save-config"].checked;
 	setConfigStatus(state.autoSave ? "自动保存已启用" : "自动保存已停用");
 	if (state.autoSave) scheduleAutoSave();
 });
