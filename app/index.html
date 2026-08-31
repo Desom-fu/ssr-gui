@@ -97,8 +97,8 @@
 					<span id="output-path">选择谱面后自动生成</span>
 				</div>
 				<div class="toggle-row">
-					<label class="toggle"><input id="wait-music" type="checkbox"><span></span>等待音乐结束</label>
-					<label class="toggle"><input id="system-fonts" type="checkbox"><span></span>使用系统字体</label>
+					<label class="dropdown-toggle"><span>等待音乐结束</span><select id="wait-music"><option value="false">关闭</option><option value="true">开启</option></select></label>
+					<label class="dropdown-toggle"><span>使用系统字体</span><select id="system-fonts"><option value="false">关闭</option><option value="true">开启</option></select></label>
 				</div>
 				<label class="field compact-field"><span>结算画面</span><div class="suffix-input"><input id="results-duration" type="number" value="1" min="0" max="60" step="0.5"><em>秒</em></div></label>
 			</section>
@@ -117,7 +117,7 @@
 				<div class="config-tools-actions">
 					<div class="secondary-button config-button action-control" id="save-config" role="button" tabindex="0" aria-disabled="false">保存配置</div>
 					<div class="secondary-button config-button action-control" id="import-config" role="button" tabindex="0" aria-disabled="false">导入配置</div>
-					<label class="toggle config-toggle"><input id="auto-save-config" type="checkbox" checked><span></span>自动保存</label>
+					<label class="dropdown-toggle config-toggle"><span>自动保存</span><select id="auto-save-config"><option value="false">关闭</option><option value="true" selected>开启</option></select></label>
 				</div>
 			</div>
 

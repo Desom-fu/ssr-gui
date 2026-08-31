@@ -58,7 +58,7 @@ test("Node is a minimum requirement, not a pinned runtime", async () => {
 test("release version and pinned recorder are synchronized", async () => {
 	const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 	const lockfile = JSON.parse(await readFile(new URL("../package-lock.json", import.meta.url), "utf8"));
-	assert.equal(packageJson.version, "0.3.5");
+	assert.equal(packageJson.version, "0.3.6");
 	assert.equal(lockfile.version, packageJson.version);
 	assert.equal(lockfile.packages[""].version, packageJson.version);
 	assert.equal(RECORDER_VERSION, "0.5.1");

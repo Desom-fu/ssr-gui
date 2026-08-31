@@ -120,6 +120,10 @@ test("main workflow fields are excluded from advanced settings", async () => {
 	assert.doesNotMatch(html, /<button\b/);
 	assert.doesNotMatch(html, /<form\b/);
 	assert.match(html, /role=["']button["']/);
+	for (const id of ["wait-music", "system-fonts", "auto-save-config"]) {
+		assert.match(html, new RegExp(`<select[^>]+id=["']${id}["']`));
+		assert.doesNotMatch(html, new RegExp(`<input[^>]+id=["']${id}["']`));
+	}
 	for (const id of ["nickname", "avatar-source", "avatar-online", "avatar-upload", "avatar-upload-name", "avatar-gravatar", "output-filename"]) {
 		assert.match(html, new RegExp(`id=["']${id}["']`));
 	}
