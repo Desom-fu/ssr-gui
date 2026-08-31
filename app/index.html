@@ -20,19 +20,19 @@
 	</header>
 
 	<main class="workspace">
-		<form class="setup-pane" id="record-form">
+		<section class="setup-pane" id="record-form" aria-label="录制设置">
 			<section class="form-section">
 				<div class="section-heading">
 					<h2>谱面</h2>
 					<span class="step-number">01</span>
 				</div>
-				<button class="file-picker" id="choose-level" type="button">
+				<div class="file-picker action-control" id="choose-level" role="button" tabindex="0" aria-disabled="true">
 					<img src="icons/file-up.svg" alt="">
 					<span class="file-copy">
 						<strong id="level-name">选择 .ssc 文件</strong>
 						<small id="level-path">未选择</small>
 					</span>
-				</button>
+				</div>
 				<label class="field">
 					<span>难度</span>
 					<select id="chart-select" disabled>
@@ -92,10 +92,10 @@
 					</select></label>
 					<label class="field"><span>输出文件名</span><input id="output-filename" type="text" value="output.mkv"></label>
 				</div>
-				<button class="path-picker" id="choose-output" type="button" disabled>
+				<div class="path-picker action-control" id="choose-output" role="button" tabindex="-1" aria-disabled="true">
 					<img src="icons/folder-output.svg" alt="">
 					<span id="output-path">选择谱面后自动生成</span>
-				</button>
+				</div>
 				<div class="toggle-row">
 					<label class="toggle"><input id="wait-music" type="checkbox"><span></span>等待音乐结束</label>
 					<label class="toggle"><input id="system-fonts" type="checkbox"><span></span>使用系统字体</label>
@@ -115,22 +115,22 @@
 					<small id="config-status">自动保存已启用</small>
 				</div>
 				<div class="config-tools-actions">
-					<button class="secondary-button config-button" id="save-config" type="button">保存配置</button>
-					<button class="secondary-button config-button" id="import-config" type="button">导入配置</button>
+					<div class="secondary-button config-button action-control" id="save-config" role="button" tabindex="0" aria-disabled="false">保存配置</div>
+					<div class="secondary-button config-button action-control" id="import-config" role="button" tabindex="0" aria-disabled="false">导入配置</div>
 					<label class="toggle config-toggle"><input id="auto-save-config" type="checkbox" checked><span></span>自动保存</label>
 				</div>
 			</div>
 
 			<div class="form-actions">
-				<button class="primary-button" id="start-record" type="submit" disabled>
+				<div class="primary-button action-control" id="start-record" role="button" tabindex="-1" aria-disabled="true">
 					<span class="record-dot"></span>
 					开始录制
-				</button>
-				<button class="icon-button" id="cancel-record" type="button" title="取消录制" disabled>
+				</div>
+				<div class="icon-button action-control" id="cancel-record" role="button" tabindex="-1" aria-disabled="true" title="取消录制">
 					<img src="icons/square.svg" alt="取消录制">
-				</button>
+				</div>
 			</div>
-		</form>
+		</section>
 
 		<section class="activity-pane" aria-live="polite">
 			<div class="activity-main">
@@ -139,13 +139,13 @@
 				<h2 id="state-title">等待谱面</h2>
 				<p class="state-detail" id="state-detail">00:00</p>
 				<div class="progress-track" aria-label="录制进度"><span id="progress-bar"></span></div>
-				<button class="secondary-button" id="reveal-output" type="button" hidden>
+				<div class="secondary-button action-control" id="reveal-output" role="button" tabindex="-1" aria-disabled="false" hidden>
 					<img src="icons/folder-open.svg" alt="">
 					打开所在文件夹
-				</button>
+				</div>
 			</div>
 			<div class="log-panel">
-				<div class="log-header"><span>运行日志</span><button id="clear-log" type="button" title="清空日志"><img src="icons/trash-2.svg" alt="清空日志"></button></div>
+				<div class="log-header"><span>运行日志</span><div class="action-control" id="clear-log" role="button" tabindex="0" aria-disabled="false" title="清空日志"><img src="icons/trash-2.svg" alt="清空日志"></div></div>
 				<pre id="log-output">运行组件就绪后即可开始。</pre>
 			</div>
 		</section>

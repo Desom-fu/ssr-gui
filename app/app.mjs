@@ -252,17 +252,38 @@ function startTimer() {
 	}, 500);
 }
 
+function setActionDisabled(element, disabled) {
+	element.setAttribute("aria-disabled", String(disabled));
+	element.tabIndex = disabled ? -1 : 0;
+}
+
+function bindAction(element, handler) {
+	const activate = event => {
+		if (element.getAttribute("aria-disabled") === "true") {
+			event.preventDefault();
+			return;
+		}
+		handler(event);
+	};
+	element.addEventListener("click", activate);
+	element.addEventListener("keydown", event => {
+		if (event.key !== "Enter" && event.key !== " ") return;
+		event.preventDefault();
+		if (element.getAttribute("aria-disabled") !== "true") element.click();
+	});
+}
+
 function updateActions() {
 	const onlineReady = customValues.levelFile === "online" && Boolean(String(customValues.levelFileOnline || "").trim());
 	const outputReady = Boolean(elements["output-filename"].value.trim() && (state.outputPath || customValues.output));
 	const ready = state.runtimeReady && Boolean(((state.levelPath && state.levelReady) || onlineReady) && outputReady);
-	elements["start-record"].disabled = !ready || state.running;
-	elements["cancel-record"].disabled = !state.running;
-	elements["choose-level"].disabled = state.running;
-	elements["choose-output"].disabled = !((state.levelPath && state.levelReady) || onlineReady) || state.running;
+	setActionDisabled(elements["start-record"], !ready || state.running);
+	setActionDisabled(elements["cancel-record"], !state.running);
+	setActionDisabled(elements["choose-level"], state.running);
+	setActionDisabled(elements["choose-output"], !((state.levelPath && state.levelReady) || onlineReady) || state.running);
 	elements["chart-select"].disabled = !state.levelPath || state.running || elements["chart-select"].options.length < 2;
-	elements["save-config"].disabled = state.running;
-	elements["import-config"].disabled = state.running;
+	setActionDisabled(elements["save-config"], state.running);
+	setActionDisabled(elements["import-config"], state.running);
 	document.querySelectorAll("input, select").forEach(element => {
 		if (element.id !== "chart-select") element.disabled = state.running;
 	});
@@ -561,23 +582,23 @@ async function initialize() {
 	updateActions();
 }
 
-elements["choose-level"].addEventListener("click", () => chooseLevel().catch(error => {
+bindAction(elements["choose-level"], () => chooseLevel().catch(error => {
 	appendLog(error.message, "stderr");
 	setStatus("failed", "INVALID LEVEL", "无法读取谱面", "请检查文件");
 }));
-elements["choose-output"].addEventListener("click", () => chooseOutput().catch(error => appendLog(error.message, "stderr")));
-elements["save-config"].addEventListener("click", () => saveConfigFile().catch(error => {
+bindAction(elements["choose-output"], () => chooseOutput().catch(error => appendLog(error.message, "stderr")));
+bindAction(elements["save-config"], () => saveConfigFile().catch(error => {
 		setConfigStatus(`保存失败：${error.message}`, true);
 		appendLog(error.message, "stderr");
 }));
-elements["import-config"].addEventListener("click", () => importConfigFile().catch(error => {
+bindAction(elements["import-config"], () => importConfigFile().catch(error => {
 		setConfigStatus(`导入失败：${error.message}`, true);
 		appendLog(error.message, "stderr");
 }));
-elements["record-form"].addEventListener("submit", beginRecording);
-elements["cancel-record"].addEventListener("click", () => platform.cancel().catch(error => appendLog(error.message, "stderr")));
-elements["reveal-output"].addEventListener("click", () => platform.reveal(state.outputPath));
-elements["clear-log"].addEventListener("click", () => {
+bindAction(elements["start-record"], beginRecording);
+bindAction(elements["cancel-record"], () => platform.cancel().catch(error => appendLog(error.message, "stderr")));
+bindAction(elements["reveal-output"], () => platform.reveal(state.outputPath));
+bindAction(elements["clear-log"], () => {
 	state.logLines = [];
 	elements["log-output"].textContent = "";
 });
