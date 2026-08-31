@@ -124,6 +124,7 @@ test("main workflow fields are excluded from advanced settings", async () => {
 		assert.match(html, new RegExp(`<input[^>]+id=["']${id}["'][^>]+type=["']checkbox["']`));
 		assert.doesNotMatch(html, new RegExp(`<select[^>]+id=["']${id}["']`));
 	}
+	assert.match(html, /class=["']checkbox-toggle["']/);
 	for (const id of ["nickname", "avatar-source", "avatar-online", "avatar-upload", "avatar-upload-name", "avatar-gravatar", "output-filename"]) {
 		assert.match(html, new RegExp(`id=["']${id}["']`));
 	}

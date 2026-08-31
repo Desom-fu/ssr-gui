@@ -458,6 +458,22 @@ input:focus-visible {
 	background: #fff;
 }
 
+.checkbox-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	color: var(--muted);
+	font-size: 11px;
+	cursor: pointer;
+}
+
+.checkbox-toggle input {
+	width: 14px;
+	height: 14px;
+	margin: 0;
+	accent-color: var(--accent);
+}
+
 .compact-field {
 	grid-template-columns: 78px 100px;
 	align-items: center;
