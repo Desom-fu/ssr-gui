@@ -79,6 +79,8 @@ test("recorder arguments use explicit values accepted by minimist adapter", () =
 	const dragSizeIndex = args.indexOf("--note-size-drag");
 	assert.deepEqual(args.slice(dragSizeIndex, dragSizeIndex + 2), ["--note-size-drag", "0.65"]);
 	assert.equal(args.includes("--note-size"), false);
+	const qualityIndex = args.indexOf("--quality-big-text");
+	assert.deepEqual(args.slice(qualityIndex, qualityIndex + 2), ["--quality-big-text", "1"]);
 });
 
 test("FFmpeg option values beginning with a dash stay values", () => {
@@ -87,7 +89,7 @@ test("FFmpeg option values beginning with a dash stay values", () => {
 	assert.equal(args[index], "--ffmpeg-output-options=-c:a aac -b:a 192k");
 });
 
-test("the GUI schema covers all 91 recorder defaults exactly once", async () => {
+test("the GUI schema covers all 92 recorder defaults exactly once", async () => {
 	const fs = await import("node:fs/promises");
 	const path = await import("node:path");
 	const sourcePath = process.env.SSR_RECORD_SOURCE
@@ -96,13 +98,13 @@ test("the GUI schema covers all 91 recorder defaults exactly once", async () => 
 	let source = "";
 	try { source = await fs.readFile(sourcePath, "utf8"); } catch { /* CI may not checkout the sibling source. */ }
 	if (!source) {
-		assert.equal(RECORDER_FIELDS.length, 91);
-		assert.equal(new Set(RECORDER_FIELDS.map(field => field.key)).size, 91);
+		assert.equal(RECORDER_FIELDS.length, 92);
+		assert.equal(new Set(RECORDER_FIELDS.map(field => field.key)).size, 92);
 		return;
 	}
 	const block = source.match(/static DEFAULT_SETTINGS = \{([\s\S]*?)\n\t\}/)?.[1] || "";
 	const upstreamKeys = [...block.matchAll(/^\t\t([A-Za-z0-9]+):/gm)].map(match => match[1]);
-	assert.equal(upstreamKeys.length, 91);
+	assert.equal(upstreamKeys.length, 92);
 	assert.deepEqual(RECORDER_FIELDS.map(field => field.key), upstreamKeys);
 	assert.deepEqual(Object.keys(RECORDER_DEFAULTS), upstreamKeys);
 });

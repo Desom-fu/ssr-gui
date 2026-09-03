@@ -4,9 +4,9 @@
 
 `ssr-gui` 是 [sunniesnow-record](https://github.com/sunniesnow/sunniesnow-record) 的桌面图形界面。发行包已经包含 Node.js、FFmpeg、recorder、Sunniesnow 和全部运行依赖，最终用户不需要安装或配置开发环境。
 
-0.3.8 版精确固定到 `sunniesnow-record` 最终发布的 v0.5.1。构建与成品包校验都会检查内置 recorder 的版本；使用 Git 源码构建时还会核对最终 release commit。本次发布将等待音乐结束、使用系统字体和自动保存改为原生方框复选框, 其他控件保持不变。
+0.4.0 版内置 `sunniesnow-record` 0.5.2（commit `421c9fa`），包含更新后的 Sunniesnow 游戏引擎以及新增的大字画质选项。构建与成品包校验都会检查内置 recorder 的版本；使用 Git 源码构建时还会核对其精确 commit。
 
-主界面直接提供谱面、难度、画质、昵称、头像、输出文件名、格式与位置。可选格式包括 MKV、MP4、WebM、MOV、AVI 和 MPEG-TS。其余每个 `sunniesnow-record` 参数只在更多设置中出现一次，包括 Tap、Drag、Flick、Hold、Drag-Flick、仅头 Hold 与背景音符的独立大小。
+主界面直接提供谱面、难度、画质、昵称、头像、输出文件名、格式与位置。可选格式包括 MKV、MP4、WebM、MOV、AVI 和 MPEG-TS。其余每个 `sunniesnow-record` 参数只在更多设置中出现一次，包括 Tap、Drag、Flick、Hold、Drag-Flick、仅头 Hold 与背景音符的独立大小，以及大字画质。
 
 配置工具栏支持保存和导入 JSON 配置。程序会在启动时从应用可执行文件旁的 `ssr-gui-config.json` 恢复上次配置，默认自动保存；也可以在保存/导入按钮旁关闭自动保存。
 
