@@ -58,11 +58,11 @@ test("Node is a minimum requirement, not a pinned runtime", async () => {
 test("release version and pinned recorder are synchronized", async () => {
 	const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 	const lockfile = JSON.parse(await readFile(new URL("../package-lock.json", import.meta.url), "utf8"));
-	assert.equal(packageJson.version, "0.4.0");
+	assert.equal(packageJson.version, "0.4.1");
 	assert.equal(lockfile.version, packageJson.version);
 	assert.equal(lockfile.packages[""].version, packageJson.version);
-	assert.equal(RECORDER_VERSION, "0.5.2");
-	assert.equal(RECORDER_COMMIT, "421c9fad9be0081c2e5737d6eb00c5567fd90370");
+	assert.equal(RECORDER_VERSION, "0.5.4");
+	assert.equal(RECORDER_COMMIT, "bcb045c134256cdfea87eebb3f2ec741911c828b");
 });
 
 test("desktop layout keeps the app bar and workspace tied to the viewport", async () => {
