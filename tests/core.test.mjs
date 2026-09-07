@@ -193,6 +193,24 @@ test("the GUI cover schema covers all upstream cover defaults exactly once", asy
 	assert.deepEqual(COVER_EXTRA_FIELDS.map(field => field.key), ["coverThemeImageX", "coverThemeImageY", "coverThemeImageWidth"]);
 });
 
+test("cover i18n locales share one key set and the HTML section is wired", async () => {
+	const { COVER_I18N, COVER_I18N_LOCALES } = await import("../app/core.mjs");
+	assert.ok(COVER_I18N_LOCALES.length >= 2);
+	const expected = Object.keys(COVER_I18N[COVER_I18N_LOCALES[0]]).sort();
+	for (const locale of COVER_I18N_LOCALES) {
+		assert.deepEqual(Object.keys(COVER_I18N[locale]).sort(), expected, `${locale} must define the same keys`);
+	}
+	const html = await (await import("node:fs/promises")).readFile(new URL("../app/index.html", import.meta.url), "utf8");
+	assert.match(html, /id=["']cover-section["']/);
+	assert.match(html, /data-cover-i18n=["']coverGenerate["']/);
+	for (const key of COVER_EXTRA_FIELDS.map(field => field.key)) {
+		assert.match(html, new RegExp(`data-setting=["']${key}["']`));
+	}
+	const appSource = await (await import("node:fs/promises")).readFile(new URL("../app/app.mjs", import.meta.url), "utf8");
+	assert.doesNotMatch(appSource, /for \(const definition of COVER_EXTRA_FIELDS\) groups\.get/);
+	assert.match(appSource, /registerCoverMainControls/);
+});
+
 test("recorder argument validation rejects unsafe numeric values", () => {
 	const settings = {
 		cliPath: "cli", ffmpegPath: "ffmpeg", levelPath: "level", outputPath: "out", tempDir: "tmp",

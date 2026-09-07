@@ -103,6 +103,22 @@
 				<label class="field compact-field"><span>结算画面</span><div class="suffix-input"><input id="results-duration" type="number" value="1" min="0" max="60" step="0.5"><em>秒</em></div></label>
 			</section>
 
+			<section class="form-section" id="cover-section" aria-label="封面生成">
+				<div class="section-heading">
+					<h2 data-cover-i18n="coverTitle">封面</h2>
+					<span class="step-number">05</span>
+				</div>
+				<div class="resolution-row">
+					<label class="field"><span data-cover-i18n="coverThemeImageX">主题图中心 X</span><input id="cover-theme-image-x" data-setting="coverThemeImageX" type="number" step="1"></label>
+					<label class="field"><span data-cover-i18n="coverThemeImageY">主题图中心 Y</span><input id="cover-theme-image-y" data-setting="coverThemeImageY" type="number" step="1"></label>
+					<label class="field"><span data-cover-i18n="coverThemeImageWidth">主题图宽度</span><input id="cover-theme-image-width" data-setting="coverThemeImageWidth" type="number" min="0" step="1"></label>
+				</div>
+				<small class="field-hint" data-cover-i18n="coverThemeImageHint">留空则使用游戏默认布局</small>
+				<div class="secondary-button action-control cover-generate" id="generate-cover" role="button" tabindex="-1" aria-disabled="true" data-cover-i18n="coverGenerate">
+					生成封面
+				</div>
+			</section>
+
 			<details class="advanced-settings">
 				<summary>全部 recorder 参数</summary>
 				<p class="advanced-note">这里包含尚未在上方显示的全部命令行选项。</p>
@@ -122,9 +138,6 @@
 			</div>
 
 			<div class="form-actions">
-				<div class="secondary-button action-control form-cover-button" id="generate-cover" role="button" tabindex="-1" aria-disabled="true">
-					生成封面
-				</div>
 				<div class="primary-button action-control" id="start-record" role="button" tabindex="-1" aria-disabled="true">
 					<span class="record-dot"></span>
 					开始录制

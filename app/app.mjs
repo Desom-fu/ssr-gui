@@ -1,5 +1,6 @@
 import { ADVANCED_RECORDER_FIELDS, COVER_DEFAULTS, COVER_EXTRA_FIELDS, FIELD_GROUPS, FIELD_LABELS, RECORDER_DEFAULTS, fieldGroup, outputFormat, progressFromCoverOutput, progressFromOutput, recordingPhaseFromOutput, replaceOutputExtension, replaceOutputFilename, settingsForPreset } from "./core.mjs";
 import { DesktopPlatform } from "./platform.mjs";
+import { applyCoverI18n } from "./i18n.mjs";
 
 const platform = new DesktopPlatform();
 const elements = Object.fromEntries([
@@ -94,6 +95,22 @@ function updateCustomValue(definition, control) {
 	scheduleAutoSave();
 }
 
+function registerCoverMainControls() {
+	for (const definition of COVER_EXTRA_FIELDS) {
+		const control = document.querySelector(`#cover-section [data-setting="${definition.key}"]`);
+		if (!control) continue;
+		if (definition.type === "number") {
+			if (definition.min != null) control.min = String(definition.min);
+			if (definition.max != null) control.max = String(definition.max);
+			if (definition.step != null) control.step = String(definition.step);
+		}
+		control.addEventListener("change", () => updateCustomValue(definition, control));
+		control.addEventListener("input", () => updateCustomValue(definition, control));
+		advancedControls.set(definition.key, control);
+		if (customValues[definition.key] != null) control.value = String(customValues[definition.key]);
+	}
+}
+
 function renderAdvancedSettings() {
 	const groups = new Map(FIELD_GROUPS.map(group => {
 		const details = document.createElement("details");
@@ -105,7 +122,6 @@ function renderAdvancedSettings() {
 		return [group.id, details];
 	}));
 	for (const definition of ADVANCED_RECORDER_FIELDS) groups.get(fieldGroup(definition.key)).append(makeFieldControl(definition));
-	for (const definition of COVER_EXTRA_FIELDS) groups.get(fieldGroup(definition.key)).append(makeFieldControl(definition));
 }
 
 function collectRecorderSettings() {
@@ -683,7 +699,9 @@ elements["choose-level"].addEventListener("drop", event => {
 });
 
 renderAdvancedSettings();
+registerCoverMainControls();
 updateAvatarFields();
+applyCoverI18n();
 
 nw.Window.get().on("close", function onClose() {
 	if (state.running) return platform.cancel().finally(() => this.close(true));
