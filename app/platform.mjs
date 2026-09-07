@@ -1,4 +1,4 @@
-import { buildRecorderArgs, resolveRecorderOutputPath, stripAnsi } from "./core.mjs";
+import { buildCoverArgs, buildRecorderArgs, resolveRecorderOutputPath, stripAnsi } from "./core.mjs";
 
 const fs = nw.require("node:fs");
 const path = nw.require("node:path");
@@ -51,6 +51,7 @@ export class DesktopPlatform {
 		return {
 			node: path.join(packageDirectory, "runtime", executableName("node")),
 			cli: path.join(packageDirectory, "recorder", "cli.mjs"),
+			coverCli: path.join(packageDirectory, "recorder", "cli-cover-gen.mjs"),
 			ffmpeg: path.join(packageDirectory, "runtime", executableName("ffmpeg")),
 			temp: path.join(nw.App.dataPath, "render-cache"),
 		};
@@ -144,27 +145,19 @@ export class DesktopPlatform {
 		return this.writeConfig(this.getConfigPath(), config);
 	}
 
-	async record(settings, handlers = {}) {
+	spawnRecorder(scriptPath, args, handlers = {}, { prependPathDirectory = "" } = {}) {
 		if (this.child) throw new Error("A recording is already running.");
-		const runtime = await this.verifyRuntime();
-		const outputPath = resolveRecorderOutputPath(settings);
-		await fs.promises.mkdir(path.dirname(outputPath), { recursive: true });
-		const args = buildRecorderArgs({
-			...settings,
-			output: outputPath,
-			outputPath,
-			cliPath: runtime.cli,
-			ffmpegPath: settings.ffmpeg || runtime.ffmpeg,
-			tempDir: settings.tempDir || runtime.temp,
-		});
 		const environment = { ...process.env, NO_COLOR: "1" };
+		if (prependPathDirectory) {
+			environment.PATH = `${prependPathDirectory}${path.delimiter}${environment.PATH || ""}`;
+		}
 		if (process.platform === "win32") {
 			environment.PANGOCAIRO_BACKEND = "fontconfig";
 			environment.FONTCONFIG_FILE = path.join(packageDirectory, "app", "fonts.conf");
 		}
 		this.cancelled = false;
-		const child = spawn(runtime.node, args, {
-			cwd: path.dirname(runtime.cli),
+		const child = spawn(scriptPath, args, {
+			cwd: path.dirname(scriptPath),
 			detached: process.platform !== "win32",
 			env: environment,
 			stdio: ["ignore", "pipe", "pipe"],
@@ -189,6 +182,39 @@ export class DesktopPlatform {
 				if (code === 0) return resolve({ cancelled: false, code, signal });
 				reject(new Error(`sunniesnow-record exited with code ${code ?? signal ?? "unknown"}.`));
 			});
+		});
+	}
+
+	async record(settings, handlers = {}) {
+		const runtime = await this.verifyRuntime();
+		const outputPath = resolveRecorderOutputPath(settings);
+		await fs.promises.mkdir(path.dirname(outputPath), { recursive: true });
+		const args = buildRecorderArgs({
+			...settings,
+			output: outputPath,
+			outputPath,
+			cliPath: runtime.cli,
+			ffmpegPath: settings.ffmpeg || runtime.ffmpeg,
+			tempDir: settings.tempDir || runtime.temp,
+		});
+		return this.spawnRecorder(runtime.node, args, handlers);
+	}
+
+	async generateCover(settings, handlers = {}) {
+		const runtime = await this.verifyRuntime();
+		const outputPath = resolveRecorderOutputPath(settings);
+		await fs.promises.mkdir(path.dirname(outputPath), { recursive: true });
+		const args = buildCoverArgs({
+			...settings,
+			output: outputPath,
+			outputPath,
+			cliPath: runtime.coverCli,
+			tempDir: settings.tempDir || runtime.temp,
+		});
+		// The cover generator has no --ffmpeg option; its FFmpeg image/audio
+		// fallbacks spawn "ffmpeg" from PATH, so expose the bundled runtime.
+		return this.spawnRecorder(runtime.node, args, handlers, {
+			prependPathDirectory: path.dirname(runtime.ffmpeg),
 		});
 	}
 

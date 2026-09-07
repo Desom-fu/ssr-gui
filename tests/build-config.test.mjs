@@ -58,7 +58,7 @@ test("Node is a minimum requirement, not a pinned runtime", async () => {
 test("release version and pinned recorder are synchronized", async () => {
 	const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 	const lockfile = JSON.parse(await readFile(new URL("../package-lock.json", import.meta.url), "utf8"));
-	assert.equal(packageJson.version, "0.4.1");
+	assert.equal(packageJson.version, "1.0.0");
 	assert.equal(lockfile.version, packageJson.version);
 	assert.equal(lockfile.packages[""].version, packageJson.version);
 	assert.equal(RECORDER_VERSION, "0.5.4");
@@ -103,4 +103,13 @@ test("packaged recorder can capture frames after canvas fallback", async () => {
 	assert.match(buildScript, /Unexpected canvas pixel buffer size/);
 	assert.match(buildScript, /overrideSettings\.renderer = 'canvas'/);
 	assert.match(buildScript, /The current renderer does not expose readable pixels/);
+});
+
+test("packaged recorder ships the cover generator with its mime fix", async () => {
+	const buildScript = await readFile(new URL("../scripts/build-nw.mjs", import.meta.url), "utf8");
+	assert.match(buildScript, /cli-cover-gen\.mjs/);
+	assert.match(buildScript, /cover-gen\.mjs/);
+	assert.match(buildScript, /patchCoverGenMimeImport/);
+	const verifyScript = await readFile(new URL("../scripts/verify-package.mjs", import.meta.url), "utf8");
+	assert.match(verifyScript, /sunniesnow-cover-gen/);
 });

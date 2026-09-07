@@ -1,4 +1,4 @@
-import { ADVANCED_RECORDER_FIELDS, FIELD_GROUPS, FIELD_LABELS, RECORDER_DEFAULTS, fieldGroup, outputFormat, progressFromOutput, recordingPhaseFromOutput, replaceOutputExtension, replaceOutputFilename, settingsForPreset } from "./core.mjs";
+import { ADVANCED_RECORDER_FIELDS, COVER_DEFAULTS, COVER_EXTRA_FIELDS, FIELD_GROUPS, FIELD_LABELS, RECORDER_DEFAULTS, fieldGroup, outputFormat, progressFromCoverOutput, progressFromOutput, recordingPhaseFromOutput, replaceOutputExtension, replaceOutputFilename, settingsForPreset } from "./core.mjs";
 import { DesktopPlatform } from "./platform.mjs";
 
 const platform = new DesktopPlatform();
@@ -6,7 +6,7 @@ const elements = Object.fromEntries([
 	"record-form", "runtime-badge", "choose-level", "level-name", "level-path", "chart-select",
 	"choose-output", "output-path", "output-format", "output-filename", "video-width", "video-height", "video-fps", "speed", "wait-music", "system-fonts",
 	"nickname", "avatar-source", "avatar-online", "avatar-upload", "avatar-upload-name", "avatar-gravatar", "avatar-online-field", "avatar-upload-field", "avatar-gravatar-field",
-	"results-duration", "advanced-groups", "start-record", "cancel-record", "state-mark", "state-eyebrow",
+	"results-duration", "advanced-groups", "start-record", "generate-cover", "cancel-record", "state-mark", "state-eyebrow",
 	"state-title", "state-detail", "progress-bar", "reveal-output", "log-output", "clear-log", "save-config", "import-config", "auto-save-config", "config-status",
 ].map(id => [id, document.getElementById(id)]));
 
@@ -16,6 +16,8 @@ const state = {
 	outputPath: "",
 	outputManuallyChosen: false,
 	running: false,
+	coverMode: false,
+	lastProductPath: "",
 	runtimeReady: false,
 	progress: 0,
 	phase: "",
@@ -27,7 +29,7 @@ const state = {
 	configTimer: 0,
 };
 
-const customValues = { ...RECORDER_DEFAULTS };
+const customValues = { ...RECORDER_DEFAULTS, ...COVER_DEFAULTS };
 const advancedControls = new Map();
 
 function displayLabel(field) {
@@ -103,6 +105,7 @@ function renderAdvancedSettings() {
 		return [group.id, details];
 	}));
 	for (const definition of ADVANCED_RECORDER_FIELDS) groups.get(fieldGroup(definition.key)).append(makeFieldControl(definition));
+	for (const definition of COVER_EXTRA_FIELDS) groups.get(fieldGroup(definition.key)).append(makeFieldControl(definition));
 }
 
 function collectRecorderSettings() {
@@ -129,6 +132,19 @@ function collectRecorderSettings() {
 	values.waitForMusic = elements["wait-music"].checked;
 	values.avoidDownloadingFonts = elements["system-fonts"].checked;
 	return values;
+}
+
+function coverOutputPath() {
+	const base = state.outputPath || state.levelPath || customValues.output || "output.mkv";
+	const parsed = platform.path.parse(base);
+	return platform.path.join(parsed.dir, `${parsed.name}.png`);
+}
+
+function collectCoverSettings() {
+	const settings = collectRecorderSettings();
+	settings.outputPath = coverOutputPath();
+	settings.output = settings.outputPath;
+	return settings;
 }
 
 function captureConfig() {
@@ -278,6 +294,7 @@ function updateActions() {
 	const outputReady = Boolean(elements["output-filename"].value.trim() && (state.outputPath || customValues.output));
 	const ready = state.runtimeReady && Boolean(((state.levelPath && state.levelReady) || onlineReady) && outputReady);
 	setActionDisabled(elements["start-record"], !ready || state.running);
+	setActionDisabled(elements["generate-cover"], !ready || state.running);
 	setActionDisabled(elements["cancel-record"], !state.running);
 	setActionDisabled(elements["choose-level"], state.running);
 	setActionDisabled(elements["choose-output"], !((state.levelPath && state.levelReady) || onlineReady) || state.running);
@@ -538,6 +555,7 @@ async function beginRecording(event) {
 			state.progress = 0;
 			setProgress(0);
 		} else {
+			state.lastProductPath = state.outputPath;
 			state.progress = 100;
 			setProgress(100);
 			setStatus("done", "COMPLETE", "视频已生成", elapsed());
@@ -549,6 +567,49 @@ async function beginRecording(event) {
 		setProgress(state.progress);
 	} finally {
 		state.running = false;
+		state.coverMode = false;
+		clearInterval(state.timer);
+		updateActions();
+	}
+}
+
+async function beginCoverGeneration(event) {
+	event.preventDefault();
+	if (state.running || !state.runtimeReady) return;
+	state.running = true;
+	state.coverMode = true;
+	state.startedAt = Date.now();
+	state.progress = 5;
+	state.phase = "";
+	state.logLines = [];
+	elements["log-output"].textContent = "";
+	elements["reveal-output"].hidden = true;
+	setStatus("recording", "COVER", "正在生成封面", "00:00");
+	setProgress(5, true);
+	startTimer();
+	updateActions();
+	try {
+		const result = await platform.generateCover(collectCoverSettings(), { onOutput: appendLog });
+		if (result.cancelled) {
+			setStatus("", "CANCELLED", "封面生成已取消", elapsed());
+			appendLog("Cover generation cancelled.");
+			state.progress = 0;
+			setProgress(0);
+		} else {
+			state.lastProductPath = coverOutputPath();
+			state.progress = 100;
+			setProgress(100);
+			setStatus("done", "COMPLETE", "封面已生成", elapsed());
+			appendLog(`封面已保存：${state.lastProductPath}`);
+			elements["reveal-output"].hidden = false;
+		}
+	} catch (error) {
+		appendLog(error.stack || error.message || String(error), "error");
+		setStatus("failed", "FAILED", "封面生成失败", elapsed());
+		setProgress(state.progress);
+	} finally {
+		state.running = false;
+		state.coverMode = false;
 		clearInterval(state.timer);
 		updateActions();
 	}

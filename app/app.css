@@ -630,13 +630,19 @@ input:focus-visible {
 .form-actions {
 	margin-top: auto;
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) 42px;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 42px;
 	gap: 8px;
 	padding: 17px 22px;
 	background: var(--surface);
 	border-top: 1px solid var(--line);
 	position: sticky;
 	bottom: 0;
+}
+
+.form-actions .secondary-button {
+	height: 42px;
+	margin-top: 0;
+	justify-content: center;
 }
 
 .primary-button,

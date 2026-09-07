@@ -10,6 +10,7 @@ const executable = name => process.platform === "win32" ? `${name}.exe` : name;
 const node = path.join(stageDirectory, "runtime", executable("node"));
 const ffmpeg = path.join(stageDirectory, "runtime", executable("ffmpeg"));
 const cli = path.join(stageDirectory, "recorder", "cli.mjs");
+const coverCli = path.join(stageDirectory, "recorder", "cli-cover-gen.mjs");
 
 function run(command, args, timeout = 30_000, environment = {}) {
 	return new Promise((resolve, reject) => {
@@ -38,6 +39,9 @@ for (const filename of [
 	node,
 	ffmpeg,
 	cli,
+	coverCli,
+	path.join(stageDirectory, "recorder", "cover-gen.mjs"),
+	path.join(stageDirectory, "recorder", "cli-cover-gen.mjs"),
 	path.join(stageDirectory, "app", "index.html"),
 	path.join(stageDirectory, "app", "fonts.conf"),
 	path.join(stageDirectory, "licenses", "Node.js-LICENSE.txt"),
@@ -127,5 +131,8 @@ if (process.env.SSR_VERIFY_RECORDER === "1") {
 	const help = await run(node, [cli, "--help", "true"], 90_000);
 	if (!help.includes("Usage: sunniesnow-record")) throw new Error("Recorder help output is invalid.");
 	console.log("sunniesnow-record startup verified.");
+	const coverHelp = await run(node, [coverCli, "--help", "true"], 90_000);
+	if (!coverHelp.includes("Usage: sunniesnow-cover-gen")) throw new Error("Cover generator help output is invalid.");
+	console.log("sunniesnow-cover-gen startup verified.");
 }
 console.log("Packaged runtime verified.");

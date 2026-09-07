@@ -3,6 +3,10 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import {
 	ADVANCED_RECORDER_FIELDS,
+	COVER_DEFAULTS,
+	COVER_EXTRA_FIELDS,
+	COVER_FIELDS,
+	buildCoverArgs,
 	buildRecorderArgs,
 	inferOutputPath,
 	MAIN_FIELD_KEYS,
@@ -130,6 +134,63 @@ test("main workflow fields are excluded from advanced settings", async () => {
 	for (const id of ["nickname", "avatar-source", "avatar-online", "avatar-upload", "avatar-upload-name", "avatar-gravatar", "output-filename"]) {
 		assert.match(html, new RegExp(`id=["']${id}["']`));
 	}
+});
+
+test("cover arguments match the upstream cover generator schema", () => {
+	const args = buildCoverArgs({
+		cliPath: "/app/cli-cover-gen.mjs",
+		levelPath: "/charts/song.ssc",
+		output: "/covers/song.png",
+		chartSelect: "master.json",
+		width: 1920,
+		height: 1080,
+		backgroundBlur: 20,
+		coverThemeImageX: "",
+		coverThemeImageY: 100,
+	});
+	assert.equal(args[0], "/app/cli-cover-gen.mjs");
+	const levelIndex = args.indexOf("--level-file-upload");
+	assert.deepEqual(args.slice(levelIndex, levelIndex + 2), ["--level-file-upload", "/charts/song.ssc"]);
+	const chartIndex = args.indexOf("--chart-select");
+	assert.deepEqual(args.slice(chartIndex, chartIndex + 2), ["--chart-select", "master.json"]);
+	const outputIndex = args.indexOf("--output");
+	assert.deepEqual(args.slice(outputIndex, outputIndex + 2), ["--output", "/covers/song.png"]);
+	const themeYIndex = args.indexOf("--cover-theme-image-y");
+	assert.deepEqual(args.slice(themeYIndex, themeYIndex + 2), ["--cover-theme-image-y", "100"]);
+	assert.equal(args.includes("--cover-theme-image-x"), false);
+	assert.equal(args.includes("--cover-theme-image-width"), false);
+	assert.equal(args.includes("--fps"), false);
+	assert.equal(args.includes("--results-duration"), false);
+});
+
+test("cover argument validation rejects missing or unsafe values", () => {
+	assert.throws(() => buildCoverArgs({ cliPath: "", output: "o.png" }), /cliPath is required/);
+	assert.throws(() => buildCoverArgs({ cliPath: "c", output: "" }), /output is required/);
+	assert.throws(() => buildCoverArgs({ cliPath: "c", output: "o.png" }), /levelFileUpload is required/);
+	assert.throws(() => buildCoverArgs({ cliPath: "c", output: "o.png", levelFile: "online" }), /levelFileOnline is required/);
+	assert.throws(() => buildCoverArgs({ cliPath: "c", output: "o.png", levelPath: "l", backgroundBlur: -1 }), /backgroundBlur must be between/);
+	assert.throws(() => buildCoverArgs({ cliPath: "c", output: "o.png", levelPath: "l", width: Number.NaN }), /width must be between/);
+});
+
+test("the GUI cover schema covers all upstream cover defaults exactly once", async () => {
+	const fs = await import("node:fs/promises");
+	const path = await import("node:path");
+	const sourcePath = process.env.SSR_RECORD_SOURCE
+		? path.join(process.env.SSR_RECORD_SOURCE, "cover-gen.mjs")
+		: path.resolve("../sunniesnow-record/cover-gen.mjs");
+	let source = "";
+	try { source = await fs.readFile(sourcePath, "utf8"); } catch { /* CI may not checkout the sibling source. */ }
+	if (!source) {
+		assert.equal(COVER_FIELDS.length, 33);
+		assert.equal(new Set(COVER_FIELDS.map(field => field.key)).size, 33);
+		return;
+	}
+	const block = source.match(/static DEFAULT_SETTINGS = \{([\s\S]*?)\n\t\}/)?.[1] || "";
+	const upstreamKeys = [...block.matchAll(/^\t\t([A-Za-z0-9]+):/gm)].map(match => match[1]);
+	assert.equal(upstreamKeys.length, 33);
+	assert.deepEqual(COVER_FIELDS.map(field => field.key), upstreamKeys);
+	assert.deepEqual(Object.keys(COVER_DEFAULTS), upstreamKeys);
+	assert.deepEqual(COVER_EXTRA_FIELDS.map(field => field.key), ["coverThemeImageX", "coverThemeImageY", "coverThemeImageWidth"]);
 });
 
 test("recorder argument validation rejects unsafe numeric values", () => {

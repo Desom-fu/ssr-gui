@@ -213,7 +213,7 @@ async function copyRecorder() {
 	const game = await resolveGameSource(source);
 	const destination = path.join(stageDirectory, "recorder");
 	await mkdir(destination, { recursive: true });
-	for (const filename of ["cli.mjs", "record.mjs", "sunniesnow.mjs", "package.json", "LICENSE"]) {
+	for (const filename of ["cli.mjs", "cli-cover-gen.mjs", "cover-gen.mjs", "record.mjs", "sunniesnow.mjs", "package.json", "LICENSE"]) {
 		const sourceFile = path.join(source, filename);
 		if (!existsSync(sourceFile)) throw new Error(`Missing recorder file: ${sourceFile}`);
 		await cp(sourceFile, path.join(destination, filename));
@@ -426,6 +426,20 @@ async function bundleFonts() {
 		source: font.sourceUrl,
 		license: `licenses/fonts/${font.license}`,
 	})), null, "\t")}\n`);
+}
+
+async function patchCoverGenMimeImport() {
+	// Upstream cover-gen.mjs reads file uploads through `mime` but never imports it.
+	const filename = path.join(stageDirectory, "recorder", "cover-gen.mjs");
+	let source = await readFile(filename, "utf8");
+	if (source.includes("import mime from 'mime';")) return;
+	const original = source;
+	if (!/^import fs from 'fs';\r?\n/m.test(source)) throw new Error("Unable to locate cover generation import anchor.");
+	source = source.replace(/^import fs from 'fs';\r?\n/m, "import fs from 'fs';\nimport mime from 'mime';\n");
+	if (source === original || !source.includes("import mime from 'mime';")) {
+		throw new Error("Unable to patch cover generation mime import.");
+	}
+	await writeFile(filename, source);
 }
 
 async function patchRecorderOutputOptions() {
@@ -857,6 +871,7 @@ async function prepareStage() {
 		await cp(source, path.join(stageDirectory, filename));
 	}
 	const recorder = await copyRecorder();
+	await patchCoverGenMimeImport();
 	await patchRecorderOutputOptions();
 	await patchRecorderWebglFallback();
 	await patchRecorderDestroyGuard();
