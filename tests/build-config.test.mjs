@@ -113,3 +113,13 @@ test("packaged recorder ships the cover generator with its mime fix", async () =
 	const verifyScript = await readFile(new URL("../scripts/verify-package.mjs", import.meta.url), "utf8");
 	assert.match(verifyScript, /sunniesnow-cover-gen/);
 });
+
+test("the build prunes runtime dead weight from the package", async () => {
+	const buildScript = await readFile(new URL("../scripts/build-nw.mjs", import.meta.url), "utf8");
+	assert.match(buildScript, /EXCLUDED_PACKAGES = new Set\(\["ffmpeg-static", "node-gyp"\]\)/);
+	assert.match(buildScript, /pruneNodeModulesDeadWeight/);
+	assert.match(buildScript, /pruneNwjsLocales/);
+	assert.match(buildScript, /"en-US\.pak", "zh-CN\.pak", "zh-TW\.pak"/);
+	assert.match(buildScript, /node-web-audio-api/);
+	assert.match(buildScript, /glDirectory, "deps"/);
+});

@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import nwbuild from "nw-builder";
 import sharp from "sharp";
 import { builderApplicationOptions, PACKAGED_WINDOW_ICON } from "./nw-build-config.mjs";
@@ -230,6 +230,11 @@ async function copyRecorder() {
 	return { source, commit, version: recorderPackage.version };
 }
 
+// Build-only packages: ffmpeg-static only supplies the binary that is copied
+// into runtime/, and node-gyp only exists as an override for rebuilding gl.
+// Neither is needed at application runtime.
+const EXCLUDED_PACKAGES = new Set(["ffmpeg-static", "node-gyp"]);
+
 async function copyProductionDependencies() {
 	const lockfile = JSON.parse(await readFile(path.join(projectDirectory, "package-lock.json"), "utf8"));
 	if (!lockfile.packages || typeof lockfile.packages !== "object") {
@@ -245,6 +250,7 @@ async function copyProductionDependencies() {
 	const destinationDirectory = path.join(stageDirectory, "node_modules");
 	await mkdir(destinationDirectory, { recursive: true });
 	for (const { name: packageName, metadata } of packages) {
+		if (EXCLUDED_PACKAGES.has(packageName)) continue;
 		if (metadata.link) throw new Error(`Linked production dependencies are unsupported: ${packageName}`);
 		const source = path.join(sourceDirectory, ...packageName.split("/"));
 		if (!existsSync(source)) {
@@ -879,9 +885,83 @@ async function prepareStage() {
 	await patchRecorderCanvasScreenshotFallback();
 	await patchRecorderNodeAssetFallbacks();
 	await Promise.all([copyProductionDependencies(), copyRuntime(), copyFfmpeg(), copyLucideIcons(), copyThirdPartyLicenses(), bundleFonts()]);
+	await pruneNodeModulesDeadWeight();
 	await generateIcons();
 	await writeBuildInformation(recorder);
 	return sourcePackage;
+}
+
+const PRUNED_FILE_EXTENSIONS = new Set([".map", ".d.ts", ".pdb", ".obj", ".lib", ".tsbuildinfo"]);
+const LICENSED_NAME_PATTERN = /^(licen[cs]e|copying|notice|third[-_]party)/i;
+
+async function removeDirectoryIfEmpty(directory) {
+	const entries = await readdir(directory).catch(error => {
+		if (error?.code === "ENOENT") return null;
+		throw error;
+	});
+	if (entries === null) return;
+	if (entries.length) return;
+	await rm(directory, { force: true });
+}
+
+async function pruneNodeModulesDeadWeight() {
+	// Runtime never needs build intermediates, debug symbols, source maps,
+	// type declarations, or documentation; multi-platform native binaries
+	// only need the current target. This keeps the package materially smaller.
+	const nodeModules = path.join(stageDirectory, "node_modules");
+	const platformTag = { win32: "win32", darwin: "darwin", linux: "linux" }[TARGET_PLATFORM];
+	const nativeTag = `${platformTag}-${RUNTIME_ARCH}`;
+	const walk = async directory => {
+		for (const entry of await readdir(directory, { withFileTypes: true })) {
+			const target = path.join(directory, entry.name);
+			if (entry.isDirectory()) {
+				await walk(target);
+				continue;
+			}
+			const extension = path.extname(entry.name).toLowerCase();
+			const isDocumentation = extension === ".md" && !LICENSED_NAME_PATTERN.test(entry.name);
+			if (PRUNED_FILE_EXTENSIONS.has(extension) || isDocumentation) {
+				await rm(target, { force: true });
+			}
+		}
+	};
+	await walk(nodeModules);
+	// gl ships headers, import libraries, and compiler intermediates that are
+	// only used when rebuilding from source; keep only the runtime binaries.
+	const glDirectory = path.join(nodeModules, "gl");
+	await rm(path.join(glDirectory, "deps"), { recursive: true, force: true });
+	await rm(path.join(glDirectory, "build", "Release", "obj"), { recursive: true, force: true });
+	for (const filename of ["binding.sln", "webgl.vcxproj", "webgl.vcxproj.filters"]) {
+		await rm(path.join(glDirectory, "build", filename), { force: true });
+	}
+	// node-web-audio-api bundles a native binary for every platform.
+	const audioDirectory = path.join(nodeModules, "node-web-audio-api");
+	if (existsSync(audioDirectory)) {
+		for (const entry of await readdir(audioDirectory)) {
+			if (!entry.endsWith(".node")) continue;
+			if (!entry.includes(nativeTag)) await rm(path.join(audioDirectory, entry), { force: true });
+		}
+	}
+	// canvas also ships a msvs build tree alongside the runtime DLLs.
+	const canvasDirectory = path.join(nodeModules, "canvas", "build");
+	for (const filename of ["binding.sln", "canvas.vcxproj", "canvas.vcxproj.filters"]) {
+		await rm(path.join(canvasDirectory, filename), { force: true });
+	}
+	for (const directory of [glDirectory, audioDirectory, canvasDirectory]) await removeDirectoryIfEmpty(directory);
+}
+
+async function pruneNwjsLocales() {
+	// NW.js extracts locale resources for dozens of languages; keep the ones
+	// the GUI actually targets and let Chromium fall back to en-US otherwise.
+	// Each locale ships a .pak resource and a .pak.info companion file.
+	const localesDirectory = path.join(outputDirectory, "locales");
+	if (!existsSync(localesDirectory)) return;
+	const keep = new Set(["en-US.pak", "zh-CN.pak", "zh-TW.pak"]);
+	for (const entry of await readdir(localesDirectory)) {
+		const resource = entry.endsWith(".info") ? entry.slice(0, -".info".length) : entry;
+		if (keep.has(resource)) continue;
+		await rm(path.join(localesDirectory, entry), { force: true });
+	}
 }
 
 async function signMacApplication() {
@@ -900,6 +980,7 @@ async function main() {
 	await ensureNativeAbi();
 	const sourcePackage = await prepareStage();
 	const nwPackage = JSON.parse(await readFile(path.join(projectDirectory, "node_modules", "nw", "package.json"), "utf8"));
+	const nwPackageCacheDirectory = path.join(projectDirectory, "node_modules", "nw");
 	const previousDirectory = process.cwd();
 	process.chdir(stageDirectory);
 	try {
@@ -915,10 +996,16 @@ async function main() {
 			platform: NW_PLATFORM,
 			arch: TARGET_ARCH,
 			app: builderApplicationOptions(TARGET_PLATFORM, sourcePackage),
+			// Prefer the NW.js manifest cached beside the nw package so builds
+			// stay deterministic and work offline; fall back to the online one.
+			manifestUrl: existsSync(path.join(nwPackageCacheDirectory, "manifest.json"))
+				? pathToFileURL(path.join(nwPackageCacheDirectory, "manifest.json")).href
+				: undefined,
 		});
 	} finally {
 		process.chdir(previousDirectory);
 	}
+	await pruneNwjsLocales();
 	await signMacApplication();
 	console.log(`ssr-gui ${TARGET_PLATFORM}/${TARGET_ARCH} written to ${outputDirectory}`);
 }
